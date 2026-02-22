@@ -7,7 +7,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{glib, CompositeTemplate, *};
 
-use crate::application::Action;
+use crate::{application::Action, model::ImageDownloadImpl, path::CACHE};
 use async_channel::Sender;
 use gettextrs::gettext;
 use glib::{ParamSpec, ParamSpecBoolean, SendWeakRef, Value};
@@ -36,7 +36,8 @@ impl SonglistRow {
     }
 
     pub fn set_from_song_info(&self, si: &SongInfo) {
-        self.imp().song_info.replace(Some(si.clone()));
+        let imp = self.imp();
+        imp.song_info.replace(Some(si.clone()));
 
         self.set_tooltip_text(Some(&si.name));
         self.set_name(&si.name);
@@ -45,6 +46,18 @@ impl SonglistRow {
         self.set_duration(si.duration);
 
         self.set_activatable(si.copyright.playable());
+
+        // Load cover thumbnail
+        if let Some(sender) = imp.sender.get() {
+            let cover_image = imp.cover_image.get();
+            let mut path = CACHE.clone();
+            path.push(format!("{}-songlist.jpg", si.album_id));
+            if path.exists() {
+                cover_image.set_from_file(Some(&path));
+            } else if !si.pic_url.is_empty() {
+                cover_image.set_from_net(si.pic_url.to_owned(), path, (40, 40), sender);
+            }
+        }
     }
 
     pub fn not_ignore_grey(&self) -> bool {
@@ -55,9 +68,15 @@ impl SonglistRow {
         self.imp().song_info.borrow().as_ref().cloned()
     }
 
+    pub fn set_index(&self, n: usize) {
+        let imp = self.imp();
+        imp.index_label.set_label(&format!("{:02}", n));
+    }
+
     pub fn switch_image(&self, visible: bool) {
         let imp = self.imp();
         imp.play_icon.set_visible(visible);
+        imp.index_label.set_visible(!visible);
     }
 
     pub fn set_like_button_visible(&self, visible: bool) {
@@ -82,7 +101,11 @@ impl SonglistRow {
 
     fn set_singer(&self, label: &str) {
         let imp = self.imp();
-        imp.artist_label.set_label(label);
+        if label.is_empty() {
+            imp.artist_label.set_label(&gettext("Unknown artist"));
+        } else {
+            imp.artist_label.set_label(label);
+        }
     }
 
     fn set_album(&self, label: &str) {
@@ -164,6 +187,10 @@ mod imp {
     pub struct SonglistRow {
         #[template_child]
         pub play_icon: TemplateChild<Image>,
+        #[template_child]
+        pub index_label: TemplateChild<Label>,
+        #[template_child]
+        pub cover_image: TemplateChild<Image>,
         #[template_child]
         pub title_label: TemplateChild<Label>,
         #[template_child]

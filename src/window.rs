@@ -22,9 +22,8 @@ use ncm_api::{BannersInfo, LoginInfo, SongInfo, SongList, TopList};
 use once_cell::sync::{Lazy, OnceCell};
 use std::{
     cell::{Cell, RefCell},
-    collections::LinkedList,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 mod imp {
@@ -43,8 +42,6 @@ mod imp {
         #[template_child]
         pub base_stack: TemplateChild<gtk::Stack>,
         #[template_child]
-        pub stack: TemplateChild<adw::ViewStack>,
-        #[template_child]
         pub back_button: TemplateChild<Button>,
         #[template_child]
         pub search_button: TemplateChild<ToggleButton>,
@@ -57,8 +54,6 @@ mod imp {
         #[template_child]
         pub primary_menu_button: TemplateChild<MenuButton>,
         #[template_child]
-        pub switcher_title: TemplateChild<adw::ViewSwitcher>,
-        #[template_child]
         pub label_title: TemplateChild<Label>,
         #[template_child]
         pub user_button: TemplateChild<MenuButton>,
@@ -67,13 +62,31 @@ mod imp {
         #[template_child]
         pub player_controls: TemplateChild<PlayerControls>,
         #[template_child]
+        pub content_stack: TemplateChild<gtk::Stack>,
+        #[template_child]
         pub toplist: TemplateChild<TopListView>,
         #[template_child]
         pub discover: TemplateChild<Discover>,
+
+        // Sidebar widgets
         #[template_child]
-        pub my_stack: TemplateChild<adw::ViewStack>,
+        pub nav_listbox: TemplateChild<ListBox>,
         #[template_child]
-        pub my_page: TemplateChild<MyPage>,
+        pub nav_discover: TemplateChild<ListBoxRow>,
+        #[template_child]
+        pub nav_toplist: TemplateChild<ListBoxRow>,
+        #[template_child]
+        pub my_section_label: TemplateChild<Label>,
+        #[template_child]
+        pub my_listbox: TemplateChild<ListBox>,
+        #[template_child]
+        pub created_playlists_expander: TemplateChild<gtk::Expander>,
+        #[template_child]
+        pub created_playlists_listbox: TemplateChild<ListBox>,
+        #[template_child]
+        pub collected_playlists_expander: TemplateChild<gtk::Expander>,
+        #[template_child]
+        pub collected_playlists_listbox: TemplateChild<ListBox>,
 
         pub playlist_lyrics_page: OnceCell<PlayListLyricsPage>,
 
@@ -81,8 +94,11 @@ mod imp {
         pub popover_menu: OnceCell<PopoverMenu>,
         pub settings: OnceCell<Settings>,
         pub sender: OnceCell<Sender<Action>>,
-        pub stack_child: Arc<Mutex<LinkedList<(String, String)>>>,
         pub page_stack: OnceCell<PageStack>,
+
+        // Sidebar playlist data
+        pub created_playlists: RefCell<Vec<SongList>>,
+        pub collected_playlists: RefCell<Vec<SongList>>,
 
         search_type: Cell<SearchType>,
         toast: RefCell<Option<Toast>>,
@@ -101,6 +117,12 @@ mod imp {
         }
         pub fn clear_user_info(&self) {
             self.user_info.take();
+        }
+        pub fn set_nickname(&self, nickname: String) {
+            self.user_info.borrow_mut().nickname = nickname;
+        }
+        pub fn get_nickname(&self) -> String {
+            self.user_info.borrow().nickname.clone()
         }
     }
 
@@ -135,11 +157,10 @@ mod imp {
                 .set(PlayListLyricsPage::new())
                 .unwrap();
 
-            if let Ok(mut stack_child) = self.stack_child.lock() {
-                stack_child.push_back(("discover".to_owned(), "".to_owned()));
-            }
-
             self.toast.replace(Some(Toast::new("")));
+
+            // Select discover row by default
+            self.nav_listbox.select_row(Some(&*self.nav_discover));
 
             obj.setup_settings();
             obj.bind_settings();
@@ -258,11 +279,6 @@ impl NeteaseCloudMusicGtk4Window {
 
         // 绑定搜索按钮和搜索栏
         let search_button = imp.search_button.get();
-        // let search_bar = imp.search_bar.get();
-        // search_button
-        //     .bind_property("active", &search_bar, "search-mode-enabled")
-        //     .flags(BindingFlags::BIDIRECTIONAL)
-        //     .build();
         let search_entry = imp.search_entry.get();
 
         // 设置搜索动作
@@ -356,6 +372,14 @@ impl NeteaseCloudMusicGtk4Window {
         self.get_uid() != 0u64
     }
 
+    pub fn set_nickname(&self, nickname: String) {
+        self.imp().set_nickname(nickname);
+    }
+
+    pub fn get_nickname(&self) -> String {
+        self.imp().get_nickname()
+    }
+
     pub fn logout(&self) {
         self.imp().clear_user_info();
     }
@@ -442,12 +466,8 @@ impl NeteaseCloudMusicGtk4Window {
         self.set_property("toast", &toast);
         self.imp().toast_overlay.add_toast(toast);
 
-        // seems that dismiss will clear something used by animation
-        // cause adw_animation_skip emit 'done' segfault on closure(https://github.com/gmg137/netease-cloud-music-gtk/issues/202)
-        // delay to wait for animation skipped/done
         crate::MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
             glib::timeout_future(std::time::Duration::from_millis(500)).await;
-            // removed from overlay toast queue by signal
             pre.dismiss();
         });
     }
@@ -542,10 +562,6 @@ impl NeteaseCloudMusicGtk4Window {
         let imp = self.imp();
         let sender = imp.sender.get().unwrap();
 
-        // 初始化我的页面
-        let my_page = imp.my_page.get();
-        my_page.set_sender(sender.clone());
-
         // 初始化播放栏
         let player_controls = imp.player_controls.get();
         player_controls.set_sender(sender.clone());
@@ -566,43 +582,27 @@ impl NeteaseCloudMusicGtk4Window {
 
         let page_stack = imp.page_stack.get().unwrap();
         page_stack.set_transition_type(StackTransitionType::Crossfade);
-        page_stack.set_transition_duration(100); // default 200
+        page_stack.set_transition_duration(100);
     }
 
     pub fn init_toplist(&self, list: Vec<TopList>) {
         let toplist = self.imp().toplist.get();
-        toplist.init_sidebar(list);
-    }
-
-    pub fn update_toplist(&self, list: Vec<SongInfo>) {
-        let toplist = self.imp().toplist.get();
-        toplist.update_songs_list(
-            &list,
-            &list
-                .iter()
-                .map(|si| self.imp().user_like_song_contains(&si.id))
-                .collect::<Vec<bool>>(),
-        );
+        toplist.init_toplist(list);
     }
 
     // page routing
     fn page_widget_switch(&self, need_back: bool) {
         let imp = self.imp();
-        let switcher_title = imp.switcher_title.get();
-        let label_title = imp.label_title.get();
         let back_button = imp.back_button.get();
-
-        let visible = need_back;
-        back_button.set_visible(visible);
-        label_title.set_visible(visible);
-        switcher_title.set_visible(!visible);
+        back_button.set_visible(need_back);
     }
+
     pub fn page_set_info(&self, title: &str) {
         let imp = self.imp();
         let label_title = imp.label_title.get();
-
         label_title.set_label(title);
     }
+
     // same name will clear old page
     pub fn page_new_with_name(
         &self,
@@ -612,12 +612,12 @@ impl NeteaseCloudMusicGtk4Window {
     ) {
         let imp = self.imp();
         let stack = imp.page_stack.get().unwrap();
-        // stack.set_transition_type(StackTransitionType::SlideLeft);
         let stack_page = stack.new_page_with_name(page, name);
         stack_page.set_title(title);
         self.page_set_info(title);
         self.page_widget_switch(true);
     }
+
     pub fn page_new(&self, page: &impl glib::object::IsA<Widget>, title: &str, name: &str) {
         let imp = self.imp();
         let stack = imp.page_stack.get().unwrap();
@@ -633,18 +633,17 @@ impl NeteaseCloudMusicGtk4Window {
                 }
             }
         }
-        // stack.set_transition_type(StackTransitionType::SlideLeft);
         let stack_page = stack.new_page(page);
         stack_page.set_title(title);
         stack_page.set_name(name);
         self.page_set_info(title);
         self.page_widget_switch(true);
     }
+
     pub fn page_back(&self) -> Option<Widget> {
         let imp = self.imp();
         let stack = imp.page_stack.get().unwrap();
 
-        // stack.set_transition_type(StackTransitionType::UnderRight);
         stack.back_page();
 
         if stack.len() > 1 {
@@ -653,13 +652,24 @@ impl NeteaseCloudMusicGtk4Window {
             self.page_widget_switch(true);
         } else {
             self.page_widget_switch(false);
+            // Restore title based on current visible page
+            let content_stack = imp.content_stack.get();
+            if let Some(name) = content_stack.visible_child_name() {
+                match name.as_str() {
+                    "discover_page" => self.page_set_info(&gettext("Netease Cloud Music")),
+                    "toplist_page" => self.page_set_info(&gettext("Toplist")),
+                    _ => self.page_set_info(&gettext("Netease Cloud Music")),
+                }
+            }
         }
         None
     }
+
     pub fn persist_volume(&self, value: f64) {
         let imp = self.imp();
         imp.player_controls.persist_volume(value);
     }
+
     pub fn page_cur_playlist_lyrics_page(&self) -> bool {
         let imp = self.imp();
         let page = imp.playlist_lyrics_page.get().unwrap();
@@ -731,18 +741,107 @@ impl NeteaseCloudMusicGtk4Window {
         page.init_songlist(detail, &self.get_song_likes(detail.sis()));
     }
 
-    pub fn switch_my_page_to_login(&self) {
+    // Sidebar visibility for login/logout
+    pub fn show_my_sidebar(&self) {
         let imp = self.imp();
-        imp.my_stack.set_visible_child_name("my_login");
+        imp.my_section_label.set_visible(true);
+        imp.my_listbox.set_visible(true);
+        imp.created_playlists_expander.set_visible(true);
+        // collected expander visibility is controlled by init_sidebar_playlists_split
     }
 
-    pub fn switch_my_page_to_logout(&self) {
+    pub fn hide_my_sidebar(&self) {
         let imp = self.imp();
-        imp.my_stack.set_visible_child_name("my_no_login");
+        imp.my_section_label.set_visible(false);
+        imp.my_listbox.set_visible(false);
+        imp.created_playlists_expander.set_visible(false);
+        imp.collected_playlists_expander.set_visible(false);
+        // Clear playlist data
+        imp.created_playlists.borrow_mut().clear();
+        imp.collected_playlists.borrow_mut().clear();
+        // Clear listbox children
+        Self::clear_listbox(&imp.created_playlists_listbox);
+        Self::clear_listbox(&imp.collected_playlists_listbox);
     }
 
-    pub fn init_my_page(&self, sls: Vec<SongList>) {
-        self.imp().my_page.init_page(sls);
+    fn clear_listbox(listbox: &ListBox) {
+        while let Some(child) = listbox.first_child() {
+            listbox.remove(&child);
+        }
+    }
+
+    pub fn init_sidebar_playlists(&self, sls: Vec<SongList>) {
+        let created: Vec<SongList> = sls.into_iter().skip(1).collect();
+        self.init_sidebar_playlists_split(created, Vec::new());
+    }
+
+    pub fn init_sidebar_playlists_split(&self, created: Vec<SongList>, collected: Vec<SongList>) {
+        let imp = self.imp();
+
+        // Clear old data
+        Self::clear_listbox(&imp.created_playlists_listbox);
+        Self::clear_listbox(&imp.collected_playlists_listbox);
+
+        // Update expander labels with count
+        imp.created_playlists_expander
+            .set_label(Some(&format!("创建的歌单 ({})", created.len())));
+        imp.collected_playlists_expander
+            .set_label(Some(&format!("收藏的歌单 ({})", collected.len())));
+
+        // Only show collected expander if there are collected playlists
+        imp.collected_playlists_expander.set_visible(!collected.is_empty());
+
+        let sender = imp.sender.get().unwrap();
+        for sl in &created {
+            let row = Self::create_playlist_row(sl, sender);
+            imp.created_playlists_listbox.append(&row);
+        }
+
+        for sl in &collected {
+            let row = Self::create_playlist_row(sl, sender);
+            imp.collected_playlists_listbox.append(&row);
+        }
+
+        imp.created_playlists.replace(created);
+        imp.collected_playlists.replace(collected);
+    }
+
+    fn create_playlist_row(sl: &SongList, sender: &Sender<Action>) -> ListBoxRow {
+        let label = Label::builder()
+            .label(&sl.name)
+            .halign(gtk::Align::Start)
+            .ellipsize(pango::EllipsizeMode::End)
+            .margin_top(4)
+            .margin_bottom(4)
+            .build();
+
+        let image = Image::builder()
+            .pixel_size(24)
+            .icon_name("audio-x-generic-symbolic")
+            .build();
+
+        let mut path = crate::path::CACHE.clone();
+        path.push(format!("{}-songlist.jpg", sl.id));
+        if !path.exists() {
+            image.set_from_net(sl.cover_img_url.to_owned(), path, (140, 140), sender);
+        } else {
+            image.set_from_file(Some(&path));
+        }
+
+        let hbox = Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(8)
+            .margin_start(8)
+            .margin_end(8)
+            .margin_top(2)
+            .margin_bottom(2)
+            .build();
+        hbox.append(&image);
+        hbox.append(&label);
+
+        let row = ListBoxRow::new();
+        row.set_child(Some(&hbox));
+        row
     }
 
     pub fn init_playlist_lyrics_page(&self, sis: Vec<SongInfo>, si: SongInfo) {
@@ -810,6 +909,22 @@ impl NeteaseCloudMusicGtk4Window {
     }
     pub fn init_mpris(&self, mpris: MprisController) {
         self.imp().player_controls.get().init_mpris(mpris);
+    }
+
+    // Helper: unselect all sidebar listboxes except the given one
+    fn unselect_other_listboxes(&self, except: &ListBox) {
+        let imp = self.imp();
+        let listboxes: [&ListBox; 4] = [
+            &imp.nav_listbox,
+            &imp.my_listbox,
+            &imp.created_playlists_listbox,
+            &imp.collected_playlists_listbox,
+        ];
+        for lb in &listboxes {
+            if *lb != except {
+                lb.unselect_all();
+            }
+        }
     }
 
     pub async fn action_search(
@@ -929,43 +1044,72 @@ impl NeteaseCloudMusicGtk4Window {
 #[gtk::template_callbacks]
 impl NeteaseCloudMusicGtk4Window {
     #[template_callback]
-    fn stack_visible_child_cb(&self) {
+    fn nav_row_activated_cb(&self, row: &ListBoxRow) {
         let imp = self.imp();
-        let stack = imp.stack.get();
-        let label = imp.label_title.get();
-        if let Some(visible_child_name) = stack.visible_child_name() {
-            let mut stack_child = LinkedList::new();
-            if let Ok(sc) = imp.stack_child.lock() {
-                stack_child = (*sc).clone();
-            }
-            if let Some(child) = stack_child.back() {
-                if visible_child_name == child.0 {
-                    return;
-                }
-            }
-            if stack_child.len() == 1 {
-                if visible_child_name == "discover"
-                    || visible_child_name == "toplist"
-                    || visible_child_name == "my"
-                {
-                    if let Ok(mut sc) = imp.stack_child.lock() {
-                        sc.pop_back();
-                        sc.push_back((visible_child_name.to_string(), "".to_owned()));
-                    }
-                } else if let Ok(mut sc) = imp.stack_child.lock() {
-                    sc.push_back((visible_child_name.to_string(), label.text().to_string()));
-                }
-            } else if visible_child_name == "discover"
-                || visible_child_name == "toplist"
-                || visible_child_name == "my"
-            {
-                if let Ok(mut sc) = imp.stack_child.lock() {
-                    sc.clear();
-                    sc.push_back((visible_child_name.to_string(), "".to_owned()));
-                }
-            } else if let Ok(mut sc) = imp.stack_child.lock() {
-                sc.push_back((visible_child_name.to_string(), label.text().to_string()));
-            }
+        self.unselect_other_listboxes(&imp.nav_listbox);
+
+        let content_stack = imp.content_stack.get();
+        let page_stack = imp.page_stack.get().unwrap();
+
+        // Pop back to root if we have detail pages on the stack
+        while page_stack.len() > 1 {
+            page_stack.back_page();
+        }
+        self.page_widget_switch(false);
+
+        if row == &*imp.nav_discover {
+            content_stack.set_visible_child_name("discover_page");
+            self.page_set_info(&gettext("Netease Cloud Music"));
+        } else if row == &*imp.nav_toplist {
+            content_stack.set_visible_child_name("toplist_page");
+            self.page_set_info(&gettext("Toplist"));
+        }
+    }
+
+    #[template_callback]
+    fn my_row_activated_cb(&self, row: &ListBoxRow) {
+        let imp = self.imp();
+        self.unselect_other_listboxes(&imp.my_listbox);
+
+        let sender = imp.sender.get().unwrap();
+        let index = row.index();
+        match index {
+            0 => sender.send_blocking(Action::ToMyPageDailyRec).unwrap(),
+            1 => sender.send_blocking(Action::ToMyPageHeartbeat).unwrap(),
+            2 => sender.send_blocking(Action::ToMyPageRadio).unwrap(),
+            3 => sender.send_blocking(Action::ToMyPageCloudDisk).unwrap(),
+            4 => sender.send_blocking(Action::ToMyPageAlbums).unwrap(),
+            _ => {}
+        }
+    }
+
+    #[template_callback]
+    fn created_playlist_row_activated_cb(&self, row: &ListBoxRow) {
+        let imp = self.imp();
+        self.unselect_other_listboxes(&imp.created_playlists_listbox);
+
+        let index = row.index() as usize;
+        let playlists = imp.created_playlists.borrow();
+        if let Some(sl) = playlists.get(index) {
+            let sender = imp.sender.get().unwrap();
+            sender
+                .send_blocking(Action::ToSongListPage(sl.clone()))
+                .unwrap();
+        }
+    }
+
+    #[template_callback]
+    fn collected_playlist_row_activated_cb(&self, row: &ListBoxRow) {
+        let imp = self.imp();
+        self.unselect_other_listboxes(&imp.collected_playlists_listbox);
+
+        let index = row.index() as usize;
+        let playlists = imp.collected_playlists.borrow();
+        if let Some(sl) = playlists.get(index) {
+            let sender = imp.sender.get().unwrap();
+            sender
+                .send_blocking(Action::ToSongListPage(sl.clone()))
+                .unwrap();
         }
     }
 
@@ -1010,8 +1154,6 @@ impl NeteaseCloudMusicGtk4Window {
         let sender = imp.sender.get().unwrap();
         let text = entry.text().to_string();
         imp.label_title.set_label(&text);
-        imp.switcher_title.set_visible(false);
-        imp.label_title.set_visible(true);
         imp.back_button.set_visible(true);
 
         let search_type = self.property::<SearchType>("search-type");

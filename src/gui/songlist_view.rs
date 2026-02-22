@@ -63,10 +63,17 @@ impl SongListView {
         let no_act_like = self.property::<bool>("no-act-like");
         let no_act_album = self.property::<bool>("no-act-album");
         let no_act_remove = self.property::<bool>("no-act-remove");
-        sis.iter().zip(likes.iter()).for_each(|(si, like)| {
+
+        // Show header when list is non-empty
+        imp.header_box.set_visible(!sis.is_empty());
+        imp.header_album_label.set_visible(!no_act_album);
+        imp.header_like_label.set_visible(!no_act_like);
+
+        sis.iter().zip(likes.iter()).enumerate().for_each(|(i, (si, like))| {
             let sender = sender.clone();
 
             let row = SonglistRow::new(sender.clone(), si);
+            row.set_index(i + 1);
             row.set_property("like", like);
             row.set_like_button_visible(!no_act_like);
             row.set_album_button_visible(!no_act_album);
@@ -112,7 +119,9 @@ impl SongListView {
     }
 
     pub fn clear_list(&self) {
-        let listbox = self.imp().listbox.get();
+        let imp = self.imp();
+        imp.header_box.set_visible(false);
+        let listbox = imp.listbox.get();
         while let Some(child) = listbox.last_child() {
             listbox.remove(&child);
         }
@@ -158,6 +167,12 @@ mod imp {
         pub scroll_win: TemplateChild<ScrolledWindow>,
         #[template_child]
         pub adw_clamp: TemplateChild<adw::Clamp>,
+        #[template_child]
+        pub header_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub header_album_label: TemplateChild<Label>,
+        #[template_child]
+        pub header_like_label: TemplateChild<Label>,
         #[template_child]
         pub listbox: TemplateChild<ListBox>,
 

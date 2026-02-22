@@ -18,11 +18,81 @@
                                 <property name="margin-start">20</property>
                                 <property name="margin-end">20</property>
                                 <child>
-                                    <object class="GtkListBox" id="listbox">
-                                        <property name="valign">start</property>
-                                        <style>
-                                            <class name="boxed-list" />
-                                        </style>
+                                    <object class="GtkBox">
+                                        <property name="orientation">vertical</property>
+                                        <child>
+                                            <object class="GtkBox" id="header_box">
+                                                <property name="visible">False</property>
+                                                <property name="height-request">36</property>
+                                                <property name="margin-start">1</property>
+                                                <property name="margin-end">19</property>
+                                                <style>
+                                                    <class name="song-header" />
+                                                </style>
+                                                <!-- # column -->
+                                                <child>
+                                                    <object class="GtkBox">
+                                                        <property name="hexpand">False</property>
+                                                        <property name="width-request">45</property>
+                                                        <child>
+                                                            <object class="GtkLabel">
+                                                                <property name="label">#</property>
+                                                                <property name="margin-start">12</property>
+                                                            </object>
+                                                        </child>
+                                                    </object>
+                                                </child>
+                                                <!-- 标题 column -->
+                                                <child>
+                                                    <object class="GtkBox" id="_header_title">
+                                                        <property name="hexpand">True</property>
+                                                        <child>
+                                                            <object class="GtkLabel">
+                                                                <property name="label">标题</property>
+                                                                <property name="halign">start</property>
+                                                                <property name="margin-start">9</property>
+                                                            </object>
+                                                        </child>
+                                                    </object>
+                                                </child>
+<!-- 专辑 + 喜欢 + 时长 column -->
+                                                <child>
+                                                    <object class="GtkBox" id="_header_album">
+                                                        <property name="hexpand">True</property>
+                                                        <child>
+                                                            <object class="GtkLabel" id="header_album_label">
+                                                                <property name="label">专辑</property>
+                                                                <property name="halign">start</property>
+                                                                <property name="hexpand">True</property>
+                                                            </object>
+                                                        </child>
+                                                        <child>
+                                                            <object class="GtkLabel" id="header_like_label">
+                                                                <property name="label">喜欢</property>
+                                                                <property name="halign">end</property>
+                                                                <property name="width-request">34</property>
+                                                            </object>
+                                                        </child>
+                                                        <child>
+                                                            <object class="GtkLabel">
+                                                                <property name="label">时长</property>
+                                                                <property name="halign">end</property>
+                                                                <property name="margin-end">12</property>
+                                                                <property name="margin-start">12</property>
+                                                            </object>
+                                                        </child>
+                                                    </object>
+                                                </child>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkListBox" id="listbox">
+                                                <property name="valign">start</property>
+                                                <style>
+                                                    <class name="boxed-list" />
+                                                </style>
+                                            </object>
+                                        </child>
                                     </object>
                                 </child>
                             </object>
@@ -32,4 +102,11 @@
             </object>
         </child>
     </template>
+    <object class="GtkSizeGroup" id="_header_size_group">
+        <property name="mode">horizontal</property>
+        <widgets>
+            <widget name="_header_title" />
+            <widget name="_header_album" />
+        </widgets>
+    </object>
 </interface>

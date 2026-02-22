@@ -2,115 +2,39 @@
 <interface>
     <template class="TopListView" parent="AdwBin">
         <child>
-            <object class="GtkPaned">
-                <property name="shrink-start-child">0</property>
+            <object class="GtkScrolledWindow">
                 <child>
-                    <object class="GtkScrolledWindow">
-                        <property name="width-request">220</property>
+                    <object class="GtkViewport">
+                        <property name="scroll-to-focus">False</property>
                         <child>
-                            <object class="GtkViewport">
-                                <property name="scroll-to-focus">True</property>
-                                <child>
-                                    <object class="GtkListBox" id="sidebar">
-                                        <property name="selection-mode">single</property>
-                                        <signal name="row-activated" handler="sidebar_cb" swapped="yes" />
-                                        <style>
-                                            <class name="navigation-sidebar" />
-                                        </style>
-                                    </object>
-                                </child>
-                            </object>
-                        </child>
-                    </object>
-                </child>
-                <child>
-                    <object class="GtkBox">
-                        <property name="orientation">vertical</property>
-                        <property name="spacing">20</property>
-                        <child>
-                            <object class="AdwClamp">
+                            <object class="GtkBox">
+                                <property name="orientation">vertical</property>
                                 <property name="margin-top">20</property>
                                 <property name="margin-start">20</property>
                                 <property name="margin-end">20</property>
-                                <property name="maximum-size">1000</property>
-                                <property name="tightening-threshold">730</property>
+                                <property name="margin-bottom">20</property>
                                 <child>
-                                    <object class="GtkBox">
-                                        <property name="halign">fill</property>
-                                        <property name="valign">fill</property>
-                                        <property name="hexpand">true</property>
-                                        <property name="orientation">horizontal</property>
-                                        <property name="spacing">12</property>
-                                        <child>
-                                            <object class="GtkFrame">
-                                                <style>
-                                                    <class name="cover-frame" />
-                                                </style>
-                                                <child>
-                                                    <object class="GtkImage" id="cover_image">
-                                                        <property name="halign">fill</property>
-                                                        <property name="valign">fill</property>
-                                                        <property name="pixel-size">140</property>
-                                                        <property name="icon-name">image-missing-symbolic</property>
-                                                    </object>
-                                                </child>
-                                            </object>
-                                        </child>
-                                        <child>
-                                            <object class="GtkBox">
-                                                <property name="orientation">vertical</property>
-                                                <property name="halign">fill</property>
-                                                <property name="valign">end</property>
-                                                <property name="spacing">2</property>
-                                                <child>
-                                                    <object class="GtkLabel" id="title_label">
-                                                        <property name="label">Title</property>
-                                                        <property name="halign">start</property>
-                                                        <property name="valign">end</property>
-                                                        <property name="max-width-chars">27</property>
-                                                        <property name="ellipsize">end</property>
-                                                        <style>
-                                                            <class name="title-1" />
-                                                        </style>
-                                                    </object>
-                                                </child>
-                                                <child>
-                                                    <object class="GtkBox">
-                                                        <property name="halign">fill</property>
-                                                        <property name="valign">end</property>
-                                                        <property name="spacing">7</property>
-                                                        <property name="orientation">horizontal</property>
-                                                        <child>
-                                                            <object class="GtkLabel" id="num_label">
-                                                                <property name="label">0 songs</property>
-                                                                <property name="halign">start</property>
-                                                                <property name="valign">end</property>
-                                                            </object>
-                                                        </child>
-                                                        <child>
-                                                            <object class="GtkButton" id="play_button">
-                                                                <property name="halign">end</property>
-                                                                <property name="valign">center</property>
-                                                                <property name="hexpand">true</property>
-                                                                <property name="icon-name">media-playback-start-symbolic</property>
-                                                                <signal name="clicked" handler="play_button_clicked_cb" swapped="true" />
-                                                                <property name="tooltip-text" translatable="yes">Play songs list</property>
-                                                                <style>
-                                                                    <class name="circular" />
-                                                                    <class name="suggested-action" />
-                                                                </style>
-                                                            </object>
-                                                        </child>
-                                                    </object>
-                                                </child>
-                                            </object>
-                                        </child>
+                                    <object class="GtkLabel">
+                                        <property name="label" translatable="yes">Toplist</property>
+                                        <property name="halign">start</property>
+                                        <property name="margin-bottom">16</property>
+                                        <style>
+                                            <class name="title-1" />
+                                        </style>
                                     </object>
                                 </child>
-                            </object>
-                        </child>
-                        <child>
-                            <object class="SongListView" id="songs_list">
+                                <child>
+                                    <object class="GtkFlowBox" id="toplist_grid">
+                                        <property name="hexpand">True</property>
+                                        <property name="valign">start</property>
+                                        <property name="max-children-per-line">5</property>
+                                        <property name="min-children-per-line">2</property>
+                                        <property name="homogeneous">False</property>
+                                        <property name="selection-mode">none</property>
+                                        <property name="activate-on-single-click">True</property>
+                                        <signal name="child-activated" handler="toplist_card_activated_cb" swapped="true" />
+                                    </object>
+                                </child>
                             </object>
                         </child>
                     </object>

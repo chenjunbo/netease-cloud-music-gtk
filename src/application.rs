@@ -86,13 +86,11 @@ pub enum Action {
 
     // toplist
     GetToplist,
-    GetToplistSongsList(u64),
     InitTopList(Vec<TopList>),
-    UpdateTopList(Vec<SongInfo>),
 
     // my
     InitMyPage,
-    InitMyPageRecSongList(Vec<SongList>),
+    InitMyPageSidebarPlaylists(Vec<SongList>),
 
     // playlist
     ToPlayListLyricsPage(Vec<SongInfo>, SongInfo),
@@ -280,6 +278,7 @@ impl NeteaseCloudMusicGtk4Application {
                             Ok(login_info) => {
                                 debug!("获取用户信息成功: {:?}", login_info);
                                 window.set_uid(login_info.uid);
+                                window.set_nickname(login_info.nickname.clone());
 
                                 ncmapi.save_cookie_jar_to_file();
                                 s.imp().ncmapi.replace(Some(ncmapi));
@@ -322,7 +321,7 @@ impl NeteaseCloudMusicGtk4Application {
                     NcmClient::clean_cookie_file();
 
                     window.logout();
-                    window.switch_my_page_to_logout();
+                    window.hide_my_sidebar();
                     sender.send(Action::SwitchUserMenuToQr).await.unwrap();
                     sender
                         .send(Action::AddToast(gettext("Logout!")))
@@ -991,34 +990,8 @@ impl NeteaseCloudMusicGtk4Application {
                     }
                 });
             }
-            Action::GetToplistSongsList(id) => {
-                let sender = imp.sender.clone();
-                MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
-                    match ncmapi.client.song_list_detail(id).await {
-                        Ok(detail) => {
-                            debug!("获取榜单 {} 详情：{:?}", id, detail);
-                            sender
-                                .send(Action::UpdateTopList(detail.songs))
-                                .await
-                                .unwrap();
-                        }
-                        Err(err) => {
-                            error!("获取榜单 {} 失败! {:?}", id, err);
-                            sender
-                                .send(Action::AddToast(gettext(
-                                    "Request for interface failed, please try again!",
-                                )))
-                                .await
-                                .unwrap();
-                        }
-                    }
-                });
-            }
             Action::InitTopList(toplist) => {
                 window.init_toplist(toplist);
-            }
-            Action::UpdateTopList(sis) => {
-                window.update_toplist(sis);
             }
             Action::Search(text, search_type, offset, limit, callback) => {
                 MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
@@ -1085,7 +1058,7 @@ impl NeteaseCloudMusicGtk4Application {
                 });
             }
             Action::ToMyPageHeartbeat => {
-                let title = gettext("Favorite Songs");
+                let title = String::from("我喜欢的音乐");
                 let page = window.init_search_song_page(&title, SearchType::Heartbeat);
                 window.page_new(&page, &title, "ToMyPageHeartbeat");
                 let page = page.downgrade();
@@ -1206,26 +1179,38 @@ impl NeteaseCloudMusicGtk4Application {
                 });
             }
             Action::InitMyPage => {
-                window.switch_my_page_to_login();
+                window.show_my_sidebar();
                 let sender = imp.sender.clone();
+                let uid = window.get_uid();
                 MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
-                    match ncmapi.client.recommend_resource().await {
+                    match ncmapi.client.user_song_list(uid, 0, 1001).await {
                         Ok(sls) => {
-                            debug!("获取推荐歌单：{:?}", sls);
+                            debug!("获取用户歌单列表：{:?}", sls);
                             sender
-                                .send(Action::InitMyPageRecSongList(sls))
+                                .send(Action::InitMyPageSidebarPlaylists(sls))
                                 .await
                                 .unwrap();
                         }
                         Err(err) => {
                             error!("{:?}", err);
-                            sender.send(Action::InitMyPage).await.unwrap();
                         }
                     }
                 });
             }
-            Action::InitMyPageRecSongList(sls) => {
-                window.init_my_page(sls);
+            Action::InitMyPageSidebarPlaylists(sls) => {
+                // First item is "liked songs" (already in sidebar), skip it
+                // Split by author: matching nickname = created, otherwise = collected
+                let nickname = window.get_nickname();
+                let mut created = Vec::new();
+                let mut collected = Vec::new();
+                for sl in sls.into_iter().skip(1) {
+                    if sl.author == nickname {
+                        created.push(sl);
+                    } else {
+                        collected.push(sl);
+                    }
+                }
+                window.init_sidebar_playlists_split(created, collected);
             }
             Action::ToPlayListLyricsPage(sis, si) => {
                 let sender = imp.sender.clone();

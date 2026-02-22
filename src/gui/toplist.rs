@@ -4,21 +4,19 @@
 // Distributed under terms of the GPL-3.0-or-later license.
 //
 use crate::{
-    application::Action, gui::songlist_view::SongListView, model::ImageDownloadImpl, path::CACHE,
-    utils::*,
+    application::Action, model::ImageDownloadImpl, path::CACHE,
 };
-use adw::{prelude::ActionRowExt, subclass::prelude::BinImpl, ActionRow};
+use adw::subclass::prelude::BinImpl;
 use async_channel::Sender;
-use gettextrs::gettext;
 use gtk::{glib, prelude::*, subclass::prelude::*, CompositeTemplate, *};
-use ncm_api::{SongInfo, TopList};
+use ncm_api::{SongList, TopList};
 use once_cell::sync::OnceCell;
-use std::{cell::RefCell, rc::Rc};
+use std::cell::RefCell;
 
 glib::wrapper! {
     pub struct TopListView(ObjectSubclass<imp::TopListView>)
-        @extends adw::Bin, Widget, Paned,
-        @implements Accessible, Orientable, ConstraintTarget,Buildable;
+        @extends adw::Bin, Widget,
+        @implements Accessible, ConstraintTarget, Buildable;
 }
 
 impl Default for TopListView {
@@ -36,61 +34,73 @@ impl TopListView {
         self.imp().sender.set(sender).unwrap();
     }
 
-    pub fn init_sidebar(&self, list: Vec<TopList>) {
+    pub fn init_toplist(&self, list: Vec<TopList>) {
         let imp = self.imp();
-        let sidebar = imp.sidebar.get();
+        let grid = imp.toplist_grid.get();
         let sender = imp.sender.get().unwrap();
 
-        let mut select = false;
-        for t in &list {
-            let action = ActionRow::builder()
-                .activatable(true)
-                .title(glib::markup_escape_text(&t.name))
-                .title_lines(1)
-                .subtitle(&t.update)
-                .build();
-            let mut path = CACHE.clone();
-            path.push(format!("{}-toplist.jpg", t.id));
-            let image = gtk::Image::from_icon_name("image-missing-symbolic");
-
-            // download cover
-            if !path.exists() {
-                image.set_from_net(t.cover.to_owned(), path, (140, 140), sender);
-            } else {
-                image.set_from_file(Some(&path));
-            }
-
-            image.set_pixel_size(40);
-            action.add_prefix(&image);
-            sidebar.append(&action);
-            if !select {
-                sidebar.select_row(Some(&action));
-                select = true;
-
-                // 加载初始选中的榜单封面
-                let mut path = CACHE.clone();
-                path.push(format!("{}-toplist.jpg", t.id));
-                imp.cover_image
-                    .set_from_net(t.cover.to_owned(), path, (140, 140), sender);
-            }
+        // Clear existing items
+        while let Some(child) = grid.last_child() {
+            grid.remove(&child);
         }
-        imp.data.set(list).unwrap();
-        imp.update_toplist_info(0);
+
+        for t in &list {
+            let card = Self::create_toplist_card(t, sender);
+            grid.insert(&card, -1);
+        }
+        imp.data.replace(list);
     }
 
-    pub fn update_songs_list(&self, sis: &[SongInfo], likes: &[bool]) {
-        let imp = self.imp();
+    fn create_toplist_card(toplist: &TopList, sender: &Sender<Action>) -> Box {
+        let vbox = Box::new(Orientation::Vertical, 0);
 
-        imp.playlist.replace(Clone::clone(&sis).to_vec());
-        imp.num_label.get().set_label(&gettext_f(
-            "{num} songs",
-            &[("num", &sis.len().to_string())],
-        ));
-        let sender = imp.sender.get().unwrap();
-        let songs_list = imp.songs_list.get();
-        songs_list.set_sender(sender.clone());
-        songs_list.init_new_list(sis, likes);
-        songs_list.set_property("no-act-remove", true);
+        let image = Image::builder()
+            .pixel_size(140)
+            .icon_name("image-missing-symbolic")
+            .build();
+
+        let frame = Frame::builder()
+            .halign(Align::Center)
+            .valign(Align::Center)
+            .child(&image)
+            .build();
+        frame.add_css_class("cover-frame");
+
+        let mut path = CACHE.clone();
+        path.push(format!("{}-toplist.jpg", toplist.id));
+
+        if !path.exists() {
+            image.set_from_net(toplist.cover.to_owned(), path, (140, 140), sender);
+        } else {
+            image.set_from_file(Some(&path));
+        }
+
+        let label = Label::builder()
+            .label(&toplist.name)
+            .lines(2)
+            .margin_start(10)
+            .margin_end(10)
+            .width_chars(1)
+            .max_width_chars(1)
+            .ellipsize(pango::EllipsizeMode::End)
+            .wrap(true)
+            .margin_top(6)
+            .build();
+
+        let update_label = Label::builder()
+            .label(&toplist.update)
+            .width_chars(1)
+            .max_width_chars(1)
+            .ellipsize(pango::EllipsizeMode::End)
+            .margin_top(2)
+            .css_classes(["dim-label"].map(String::from).to_vec())
+            .build();
+
+        vbox.append(&frame);
+        vbox.append(&label);
+        vbox.append(&update_label);
+
+        vbox
     }
 }
 
@@ -102,21 +112,9 @@ mod imp {
     #[template(resource = "/com/gitee/gmg137/NeteaseCloudMusicGtk4/gtk/toplist.ui")]
     pub struct TopListView {
         #[template_child]
-        pub sidebar: TemplateChild<ListBox>,
-        #[template_child]
-        pub cover_image: TemplateChild<Image>,
-        #[template_child]
-        pub title_label: TemplateChild<Label>,
-        #[template_child]
-        pub num_label: TemplateChild<Label>,
-        #[template_child]
-        pub play_button: TemplateChild<Button>,
+        pub toplist_grid: TemplateChild<FlowBox>,
 
-        #[template_child]
-        pub songs_list: TemplateChild<SongListView>,
-
-        pub playlist: Rc<RefCell<Vec<SongInfo>>>,
-        pub data: OnceCell<Vec<TopList>>,
+        pub data: RefCell<Vec<TopList>>,
         pub sender: OnceCell<Sender<Action>>,
     }
 
@@ -139,45 +137,21 @@ mod imp {
     #[gtk::template_callbacks]
     impl TopListView {
         #[template_callback]
-        fn sidebar_cb(&self, row: &ListBoxRow) {
-            let index = row.index();
-            self.update_toplist_info(index);
-        }
-
-        #[template_callback]
-        fn play_button_clicked_cb(&self) {
-            let sender = self.sender.get().unwrap();
-            if !self.playlist.borrow().is_empty() {
-                let playlist = &*self.playlist.borrow();
+        fn toplist_card_activated_cb(&self, child: &FlowBoxChild) {
+            let index = child.index() as usize;
+            let data = self.data.borrow();
+            if let Some(info) = data.get(index) {
+                let sender = self.sender.get().unwrap();
+                // Navigate to songlist detail page using existing ToSongListPage action
+                let sl = SongList {
+                    id: info.id,
+                    name: info.name.clone(),
+                    cover_img_url: info.cover.clone(),
+                    author: String::new(),
+                };
                 sender
-                    .send_blocking(Action::AddPlayList(playlist.clone(), true))
+                    .send_blocking(Action::ToSongListPage(sl))
                     .unwrap();
-            } else {
-                sender
-                    .send_blocking(Action::AddToast(gettext("This is an empty song list！")))
-                    .unwrap();
-            }
-        }
-
-        pub fn update_toplist_info(&self, index: i32) {
-            let songs_list = self.songs_list.get();
-            songs_list.set_property("no-act-remove", true);
-            songs_list.clear_list();
-
-            let data = self.data.get().unwrap();
-            if let Some(info) = data.get(index as usize) {
-                self.sender
-                    .get()
-                    .unwrap()
-                    .send_blocking(Action::GetToplistSongsList(info.id))
-                    .unwrap();
-                let mut path = CACHE.clone();
-
-                path.push(format!("{}-toplist.jpg", info.id));
-                self.cover_image.set_from_file(Some(path));
-
-                let title = self.title_label.get();
-                title.set_label(&info.name);
             }
         }
     }

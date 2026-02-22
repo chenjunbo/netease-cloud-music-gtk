@@ -13,6 +13,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 #[derive(Default)]
 pub struct UserInfo {
     pub uid: u64,
+    pub nickname: String,
     pub like_songs: std::collections::HashSet<u64>,
 }
 
