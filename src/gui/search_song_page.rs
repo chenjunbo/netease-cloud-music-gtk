@@ -54,7 +54,7 @@ impl SearchSongPage {
             }
         }
         match search_type {
-            SearchType::CloudDisk | SearchType::Radio => {
+            SearchType::Radio => {
                 imp.songs_list.set_property("no-act-like", true);
                 imp.songs_list.set_property("no-act-album", true);
             }
