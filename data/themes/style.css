@@ -1,0 +1,172 @@
+/*
+ * style.css — Unified application stylesheet
+ * Copyright (C) 2024 gmg137
+ *
+ * Distributed under terms of the GPL-3.0-or-later license.
+ */
+
+/* ===== Discover Page ===== */
+
+/* Carousel rounded corners and shadow */
+.carousel-overlay {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Carousel navigation buttons fade-in on hover */
+button.hover-button {
+    opacity: 0.0;
+    transition: opacity 200ms ease-in-out;
+}
+
+button.hover-button:hover {
+    opacity: 1.0;
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* FlowBox grid items */
+flowboxchild {
+    margin: 12px;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background-color 200ms ease-in-out, box-shadow 200ms ease-in-out;
+}
+
+flowboxchild:hover {
+    background-color: alpha(@theme_fg_color, 0.08);
+    box-shadow: 0 2px 6px alpha(black, 0.08);
+}
+
+flowboxchild:active {
+    background-color: alpha(@theme_fg_color, 0.16);
+}
+
+/* GridView items hover effect */
+.songlist_grid_page gridview {
+    padding: 20px;
+    padding-left: 40px;
+    padding-right: 40px;
+}
+
+.songlist_grid_page gridview > child {
+    margin: 12px;
+    margin-left: 24px;
+    margin-right: 24px;
+    padding: 6px;
+    border-radius: 8px;
+    transition: background-color 200ms ease-in-out;
+}
+
+.songlist_grid_page gridview > child:hover {
+    background-color: alpha(@theme_fg_color, 0.06);
+}
+
+/* ===== Song List Row ===== */
+
+/* Label opacity transitions */
+.song_row label {
+    opacity: 0.5;
+    transition: opacity 150ms ease-in-out;
+}
+
+.song_row.activatable label {
+    opacity: 1;
+}
+
+/* Playing icon accent color */
+.playing-icon {
+    color: @accent_color;
+}
+
+/* Duration label tabular figures */
+.duration-label {
+    font-feature-settings: "tnum" 1;
+    opacity: 0.7;
+}
+
+/* ===== Player Controls Bar ===== */
+
+/* Top separator line for player bar */
+.player-bar {
+    border-top: 1px solid alpha(@theme_fg_color, 0.12);
+}
+
+/* Play button accent background */
+.play-button {
+    background-color: @accent_bg_color;
+    color: @accent_fg_color;
+}
+
+.play-button:hover {
+    background-color: shade(@accent_bg_color, 1.1);
+}
+
+/* Seek scale custom styling */
+.seek-scale trough {
+    min-height: 4px;
+    border-radius: 2px;
+}
+
+.seek-scale highlight {
+    background-color: @accent_bg_color;
+    border-radius: 2px;
+}
+
+.seek-scale slider {
+    min-width: 14px;
+    min-height: 14px;
+    background-color: @accent_bg_color;
+    border-radius: 50%;
+}
+
+/* Player cover image rounded corners */
+.player-cover {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Time labels monospace numbers */
+.time-label {
+    font-feature-settings: "tnum" 1;
+    opacity: 0.8;
+}
+
+/* ===== Cover Frame (Songlist & Toplist pages) ===== */
+
+.cover-frame {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px alpha(black, 0.10);
+    transition: box-shadow 200ms ease-in-out;
+}
+
+.cover-frame:hover {
+    box-shadow: 0 4px 12px alpha(black, 0.18);
+}
+
+/* ===== Lyrics Page ===== */
+
+.lyrics-view {
+    background-color: transparent;
+}
+
+.lyrics-view text {
+    background-color: transparent;
+}
+
+/* ===== My Page ===== */
+
+/* Avatar navigation hover effect */
+.nav-avatar {
+    border-radius: 10px;
+    padding: 6px;
+    transition: background-color 200ms ease-in-out;
+}
+
+.nav-avatar:hover {
+    background-color: alpha(@theme_fg_color, 0.06);
+}
+
+.nav-avatar label {
+    font-size: 8pt;
+}

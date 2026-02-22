@@ -5,45 +5,7 @@
  * Distributed under terms of the GPL-3.0-or-later license.
  */
 
-button.hover-button:hover {
-  background-color: rgba(255,255,255,0.5);
-}
-
 .label-album-grid-artist {
     font-size: smaller;
     color: @theme_fg_color;
-}
-
-flowboxchild {
-  margin: 12px;
-  padding: 4px;
-}
-
-flowboxchild:hover {
-    background-color: alpha(@theme_fg_color, 0.1);
-}
-
-flowboxchild:active {
-    background-color: alpha(@theme_fg_color, 0.2);
-}
-
-.songlist_grid_page gridview {
-  padding: 20px;
-  padding-left: 40px;
-  padding-right: 40px;
-}
-
-.songlist_grid_page gridview > child {
-  margin: 12px;
-  margin-left: 24px;
-  margin-right: 24px;
-  padding: 6px;
-}
-
-.song_row label {
-	opacity: 0.5;
-}
-
-.song_row.activatable label {
-	opacity: 1;
 }

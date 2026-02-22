@@ -18,6 +18,9 @@
                         <property name="valign">fill</property>
                         <property name="height-request">283</property>
                         <property name="vexpand">true</property>
+                        <style>
+                            <class name="carousel-overlay" />
+                        </style>
                         <child>
                             <object class="AdwCarousel" id="carousel">
                                 <property name="halign">center</property>

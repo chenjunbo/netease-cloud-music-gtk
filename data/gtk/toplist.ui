@@ -43,6 +43,9 @@
                                         <property name="spacing">12</property>
                                         <child>
                                             <object class="GtkFrame">
+                                                <style>
+                                                    <class name="cover-frame" />
+                                                </style>
                                                 <child>
                                                     <object class="GtkImage" id="cover_image">
                                                         <property name="halign">fill</property>
@@ -94,6 +97,7 @@
                                                                 <property name="tooltip-text" translatable="yes">Play songs list</property>
                                                                 <style>
                                                                     <class name="circular" />
+                                                                    <class name="suggested-action" />
                                                                 </style>
                                                             </object>
                                                         </child>

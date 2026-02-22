@@ -125,6 +125,8 @@ mod imp {
             let obj = self.obj();
             self.parent_constructed();
 
+            load_css();
+
             self.page_stack
                 .set(PageStack::new(self.base_stack.get()))
                 .unwrap();
@@ -188,6 +190,18 @@ mod imp {
     impl WidgetImpl for NeteaseCloudMusicGtk4Window {}
     impl WindowImpl for NeteaseCloudMusicGtk4Window {}
     impl ApplicationWindowImpl for NeteaseCloudMusicGtk4Window {}
+
+    fn load_css() {
+        let provider = gtk::CssProvider::new();
+        provider.load_from_resource(
+            "/com/gitee/gmg137/NeteaseCloudMusicGtk4/themes/style.css",
+        );
+        gtk::style_context_add_provider_for_display(
+            &gtk::gdk::Display::default().expect("Could not connect to a display."),
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
 }
 
 glib::wrapper! {

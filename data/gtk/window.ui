@@ -236,6 +236,9 @@
                         <property name="transition-type">swing-up</property>
                         <child>
                             <object class="GtkActionBar">
+                                <style>
+                                    <class name="player-bar" />
+                                </style>
                                 <child>
                                     <object class="PlayerControls" id="player_controls" />
                                 </child>

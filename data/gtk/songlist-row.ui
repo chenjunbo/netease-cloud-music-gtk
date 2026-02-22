@@ -23,6 +23,9 @@
                                         <property name="margin-start">15</property>
                                         <property name="visible">False</property>
                                         <property name="icon-name">media-playback-start-symbolic</property>
+                                        <style>
+                                            <class name="playing-icon" />
+                                        </style>
                                     </object>
                                 </child>
                             </object>
@@ -90,6 +93,9 @@
                                 <attributes>
                                     <attribute name="font-features" value="tnum=1" />
                                 </attributes>
+                                <style>
+                                    <class name="duration-label" />
+                                </style>
                             </object>
                         </child>
                         <child>
