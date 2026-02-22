@@ -4,6 +4,8 @@
     <template class="SongListView" parent="GtkBox">
         <child>
             <object class="GtkScrolledWindow" id="scroll_win">
+                <property name="vexpand">true</property>
+                <property name="hexpand">true</property>
                 <child>
                     <object class="GtkViewport">
                         <property name="scroll-to-focus">True</property>

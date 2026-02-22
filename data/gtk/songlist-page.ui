@@ -118,7 +118,10 @@
             </object>
         </child>
         <child>
-            <object class="SongListView" id="songs_list"></object>
+            <object class="SongListView" id="songs_list">
+                <property name="vexpand">true</property>
+                <property name="hexpand">true</property>
+            </object>
         </child>
     </template>
 </interface>
