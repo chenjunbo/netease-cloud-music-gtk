@@ -164,6 +164,12 @@
                 <signal name="released" handler="on_click" swapped="yes" />
             </object>
         </child>
+        <child>
+            <object class="GtkGestureClick" id="right_click_gesture">
+                <property name="button">3</property>
+                <signal name="pressed" handler="on_right_click" swapped="yes" />
+            </object>
+        </child>
     </template>
     <object class="GtkSizeGroup" id="_size_group">
         <property name="mode">horizontal</property>

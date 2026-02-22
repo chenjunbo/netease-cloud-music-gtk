@@ -5,12 +5,12 @@
 //
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{glib, CompositeTemplate, *};
+use gtk::{gdk, gio, glib, CompositeTemplate, *};
 
 use crate::{application::Action, model::ImageDownloadImpl, path::CACHE};
 use async_channel::Sender;
 use gettextrs::gettext;
-use glib::{ParamSpec, ParamSpecBoolean, SendWeakRef, Value};
+use glib::{clone, ParamSpec, ParamSpecBoolean, SendWeakRef, Value};
 use ncm_api::{SongInfo, SongList};
 use once_cell::sync::{Lazy, OnceCell};
 use std::{
@@ -130,6 +130,40 @@ impl SonglistRow {
     }
 
     #[template_callback]
+    fn on_right_click(&self, _n_press: i32, x: f64, y: f64) {
+        let imp = self.imp();
+
+        // 动态构建菜单，根据 like 状态设置收藏文字
+        let like = imp.like.get();
+        let like_label = if like {
+            "取消收藏"
+        } else {
+            "收藏"
+        };
+
+        let menu_model = gio::Menu::new();
+        let section = gio::Menu::new();
+        section.append(Some("播放"), Some("row.play-now"));
+        section.append(Some("下一首播放"), Some("row.play-next"));
+        section.append(Some(like_label), Some("row.toggle-like"));
+        menu_model.append_section(None, &section);
+
+        // 懒创建 PopoverMenu
+        let mut menu_ref = imp.context_menu.borrow_mut();
+        if menu_ref.is_none() {
+            let menu = PopoverMenu::from_model(Some(&menu_model));
+            menu.set_parent(self.upcast_ref::<Widget>());
+            menu.set_has_arrow(false);
+            *menu_ref = Some(menu);
+        }
+
+        let menu = menu_ref.as_ref().unwrap();
+        menu.set_menu_model(Some(&menu_model));
+        menu.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+        menu.popup();
+    }
+
+    #[template_callback]
     fn like_button_clicked_cb(&self) {
         let imp = self.imp();
         let sender = imp.sender.get().unwrap();
@@ -208,6 +242,7 @@ mod imp {
         #[template_child]
         pub remove_button: TemplateChild<Button>,
 
+        pub context_menu: RefCell<Option<PopoverMenu>>,
         pub sender: OnceCell<Sender<Action>>,
         pub song_info: RefCell<Option<SongInfo>>,
 
@@ -248,6 +283,73 @@ mod imp {
                     )
                 })
                 .build();
+
+            // 注册右键菜单 actions
+            let action_group = gio::SimpleActionGroup::new();
+
+            let play_now = gio::SimpleAction::new("play-now", None);
+            play_now.connect_activate(clone!(
+                #[weak]
+                obj,
+                move |_, _| {
+                    let imp = obj.imp();
+                    if let (Some(sender), Some(si)) =
+                        (imp.sender.get(), imp.song_info.borrow().clone())
+                    {
+                        sender.send_blocking(Action::PlayNow(si)).unwrap();
+                    }
+                }
+            ));
+            action_group.add_action(&play_now);
+
+            let play_next = gio::SimpleAction::new("play-next", None);
+            play_next.connect_activate(clone!(
+                #[weak]
+                obj,
+                move |_, _| {
+                    let imp = obj.imp();
+                    if let (Some(sender), Some(si)) =
+                        (imp.sender.get(), imp.song_info.borrow().clone())
+                    {
+                        sender.send_blocking(Action::PlayNext(si)).unwrap();
+                    }
+                }
+            ));
+            action_group.add_action(&play_next);
+
+            let toggle_like = gio::SimpleAction::new("toggle-like", None);
+            toggle_like.connect_activate(clone!(
+                #[weak]
+                obj,
+                move |_, _| {
+                    let imp = obj.imp();
+                    if let Some(sender) = imp.sender.get() {
+                        let si = imp.song_info.borrow().clone().unwrap();
+                        let s_send = glib::SendWeakRef::from(obj.downgrade());
+                        let like = imp.like.get();
+                        sender
+                            .send_blocking(Action::LikeSong(
+                                si.id,
+                                !like,
+                                Some(Arc::new(move |_| {
+                                    if let Some(s) = s_send.upgrade() {
+                                        s.set_property("like", !like);
+                                    }
+                                })),
+                            ))
+                            .unwrap();
+                    }
+                }
+            ));
+            action_group.add_action(&toggle_like);
+
+            obj.insert_action_group("row", Some(&action_group));
+        }
+
+        fn dispose(&self) {
+            if let Some(menu) = self.context_menu.borrow().as_ref() {
+                menu.unparent();
+            }
         }
 
         fn properties() -> &'static [ParamSpec] {

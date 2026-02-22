@@ -49,6 +49,10 @@ pub enum Action {
 
     // play
     AddPlay(SongInfo),
+    // 下一首播放(插入到当前歌曲之后)
+    PlayNext(SongInfo),
+    // 立即播放(插入到下一首并播放)
+    PlayNow(SongInfo),
     PlayNextSong,
     Play(SongInfo),
     PlayStart(SongInfo),
@@ -665,6 +669,13 @@ impl NeteaseCloudMusicGtk4Application {
                 window.add_play(song_info.clone());
                 let sender = imp.sender.clone();
                 sender.send_blocking(Action::Play(song_info)).unwrap();
+            }
+            Action::PlayNext(song_info) => {
+                window.insert_next(song_info);
+            }
+            Action::PlayNow(song_info) => {
+                window.insert_next(song_info);
+                window.play_next();
             }
             Action::PlayNextSong => {
                 window.play_next();

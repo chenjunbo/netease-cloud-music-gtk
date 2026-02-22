@@ -507,6 +507,12 @@ impl PlayerControls {
         }
     }
 
+    pub fn insert_next(&self, song: SongInfo) {
+        if let Ok(mut playlist) = self.imp().playlist.lock() {
+            playlist.insert_next(song);
+        }
+    }
+
     pub fn set_playlist_position(&self, position: usize) {
         if let Ok(mut playlist) = self.imp().playlist.lock() {
             playlist.set_position(position);

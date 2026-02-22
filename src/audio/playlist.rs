@@ -89,6 +89,38 @@ impl PlayList {
         }
     }
 
+    /// 将歌曲插入到当前播放位置的下一首
+    /// 若歌曲已在列表中则先移除再插入，不改变当前 position
+    pub fn insert_next(&mut self, song: SongInfo) {
+        if self.list.is_empty() {
+            if let LoopsState::Shuffle = self.loops {
+                self.shuffle.push(song.clone());
+            }
+            self.list.push(song);
+            return;
+        }
+
+        // 若已存在则先移除
+        if let Some(idx) = self.list.iter().position(|s| s.id == song.id) {
+            self.list.remove(idx);
+            if idx <= self.position && self.position > 0 {
+                self.position -= 1;
+            }
+        }
+        if let LoopsState::Shuffle = self.loops {
+            if let Some(idx) = self.shuffle.iter().position(|s| s.id == song.id) {
+                self.shuffle.remove(idx);
+            }
+        }
+
+        // 插入到 position + 1
+        let insert_pos = self.position + 1;
+        self.list.insert(insert_pos, song.clone());
+        if let LoopsState::Shuffle = self.loops {
+            self.shuffle.insert(insert_pos, song);
+        }
+    }
+
     pub fn len(&self) -> usize {
         match self.loops {
             LoopsState::Shuffle => self.shuffle.len(),
