@@ -1074,11 +1074,6 @@ impl NeteaseCloudMusicGtk4Application {
                 });
             }
             Action::ToMyPageHeartbeat => {
-                let title = String::from("我喜欢的音乐");
-                let page = window.init_search_song_page(&title, SearchType::Heartbeat);
-                window.page_new(&page, &title, "ToMyPageHeartbeat");
-                let page = page.downgrade();
-
                 let sender = imp.sender.clone();
                 MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
                     let uid = window.get_uid();
@@ -1086,14 +1081,28 @@ impl NeteaseCloudMusicGtk4Application {
                         Ok(sls) => {
                             debug!("获取心动歌单：{:?}", sls);
                             if !sls.is_empty() {
-                                match ncmapi.client.song_list_detail(sls[0].id).await {
+                                let songlist = &sls[0];
+                                let page = window.init_songlist_page(songlist, false);
+                                window.page_new(&page, &songlist.name, "ToMyPageHeartbeat");
+                                let page = page.downgrade();
+
+                                let detal_dynamic_as =
+                                    ncmapi.client.songlist_detail_dynamic(songlist.id);
+                                match ncmapi.client.song_list_detail(songlist.id).await {
                                     Ok(detail) => {
+                                        debug!("获取歌单详情: {:?}", detail);
+                                        let dy =
+                                            detal_dynamic_as.await.unwrap_or_else(|err| {
+                                                error!("{:?}", err);
+                                                PlayListDetailDynamic::default()
+                                            });
+                                        let detail = SongListDetail::PlayList(detail, dy);
                                         if let Some(page) = page.upgrade() {
-                                            window.update_search_song_page(page, detail.songs);
+                                            window.update_songlist_page(page, &detail);
                                         }
                                     }
                                     Err(err) => {
-                                        error!("{:?}", err);
+                                        error!("获取歌单详情失败: {:?}", err);
                                         sender
                                             .send(Action::AddToast(gettext(
                                                 "Failed to get song list details!",

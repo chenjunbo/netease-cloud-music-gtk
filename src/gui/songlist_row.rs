@@ -154,6 +154,7 @@ impl SonglistRow {
             let menu = PopoverMenu::from_model(Some(&menu_model));
             menu.set_parent(self.upcast_ref::<Widget>());
             menu.set_has_arrow(false);
+            menu.set_property("autofocus", false);
             *menu_ref = Some(menu);
         }
 
