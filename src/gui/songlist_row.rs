@@ -148,17 +148,19 @@ impl SonglistRow {
         section.append(Some(like_label), Some("row.toggle-like"));
         menu_model.append_section(None, &section);
 
-        // 懒创建 PopoverMenu
-        let mut menu_ref = imp.context_menu.borrow_mut();
-        if menu_ref.is_none() {
-            let menu = PopoverMenu::from_model(Some(&menu_model));
-            menu.set_parent(self.upcast_ref::<Widget>());
-            menu.set_has_arrow(false);
-            menu.set_property("autofocus", false);
-            *menu_ref = Some(menu);
-        }
+        // 懒创建 PopoverMenu，clone 后释放 borrow 再 popup 防止重入 panic
+        let menu = {
+            let mut menu_ref = imp.context_menu.borrow_mut();
+            if menu_ref.is_none() {
+                let m = PopoverMenu::from_model(Some(&menu_model));
+                m.set_parent(self.upcast_ref::<Widget>());
+                m.set_has_arrow(false);
+                m.set_can_focus(false);
+                *menu_ref = Some(m);
+            }
+            menu_ref.as_ref().unwrap().clone()
+        };
 
-        let menu = menu_ref.as_ref().unwrap();
         menu.set_menu_model(Some(&menu_model));
         menu.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
         menu.popup();
