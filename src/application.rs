@@ -54,6 +54,8 @@ pub enum Action {
     PlayStart(SongInfo),
     // (歌单, 是否立即播放)
     AddPlayList(Vec<SongInfo>, bool),
+    // (歌单, 从第几首开始播放)
+    AddPlayListAt(Vec<SongInfo>, usize),
     PlayListStart,
     PersistVolume(f64),
     GetSongUrl(SongInfo),
@@ -853,6 +855,9 @@ impl NeteaseCloudMusicGtk4Application {
             }
             Action::AddPlayList(sis, is_play) => {
                 window.add_playlist(sis, is_play);
+            }
+            Action::AddPlayListAt(sis, index) => {
+                window.add_playlist_at(sis, index);
             }
             Action::PlayListStart => {
                 window.playlist_start();

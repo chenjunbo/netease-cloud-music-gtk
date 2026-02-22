@@ -530,6 +530,14 @@ impl NeteaseCloudMusicGtk4Window {
         }
     }
 
+    pub fn add_playlist_at(&self, sis: Vec<SongInfo>, index: usize) {
+        let player_controls = self.imp().player_controls.get();
+        player_controls.add_list(sis);
+        player_controls.set_playlist_position(index);
+        let sender = self.imp().sender.get().unwrap();
+        sender.send_blocking(Action::PlayListStart).unwrap();
+    }
+
     pub fn playlist_start(&self) {
         let sender = self.imp().sender.get().unwrap();
         let player_controls = self.imp().player_controls.get();

@@ -79,14 +79,15 @@ impl SongListView {
             row.set_album_button_visible(!no_act_album);
             row.set_remove_button_visible(!no_act_remove);
 
-            let si = si.clone();
             row.connect_activate(clone!(
                 #[weak(rename_to = s)]
                 self,
                 move |row| {
                     if row.is_activatable() || row.not_ignore_grey() {
                         row.switch_image(true);
-                        sender.send_blocking(Action::AddPlay(si.clone())).unwrap();
+                        let playlist = s.get_songinfo_list();
+                        let index = row.index() as usize;
+                        sender.send_blocking(Action::AddPlayListAt(playlist, index)).unwrap();
                         s.emit_row_activated(row);
                     }
                 }

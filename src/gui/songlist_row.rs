@@ -123,8 +123,10 @@ impl SonglistRow {
 #[gtk::template_callbacks]
 impl SonglistRow {
     #[template_callback]
-    fn on_click(&self) {
-        self.emit_activate();
+    fn on_click(&self, n_press: i32, _x: f64, _y: f64) {
+        if n_press == 2 {
+            self.emit_activate();
+        }
     }
 
     #[template_callback]

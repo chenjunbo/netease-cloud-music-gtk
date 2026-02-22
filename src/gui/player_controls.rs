@@ -131,14 +131,6 @@ impl PlayerControls {
     pub fn play(&self, song_info: SongInfo) {
         let imp = self.imp();
 
-        let sender = imp.sender.get().unwrap();
-        sender
-            .send_blocking(Action::AddToast(gettext_f(
-                "Start playback [{name}] ...",
-                &[("name", &song_info.name)],
-            )))
-            .unwrap();
-
         let player = imp.player.get().unwrap();
         player.stop();
         player.set_uri(Some(&song_info.song_url));
@@ -512,6 +504,12 @@ impl PlayerControls {
                         .unwrap();
                 }
             }
+        }
+    }
+
+    pub fn set_playlist_position(&self, position: usize) {
+        if let Ok(mut playlist) = self.imp().playlist.lock() {
+            playlist.set_position(position);
         }
     }
 
