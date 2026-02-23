@@ -26,4 +26,9 @@
     <gresource prefix="/com/gitee/gmg137/NeteaseCloudMusicGtk4/icons/symbolic/apps/">
         <file preprocess="xml-stripblanks" alias="logo-symbolic.svg">icons/hicolor/symbolic/apps/com.gitee.gmg137.NeteaseCloudMusicGtk4-symbolic.svg</file>
     </gresource>
+    <gresource prefix="/com/gitee/gmg137/NeteaseCloudMusicGtk4/icons/scalable/actions/">
+        <file preprocess="xml-stripblanks" alias="heart-outline-symbolic.svg">icons/hicolor/scalable/actions/heart-outline-symbolic.svg</file>
+        <file preprocess="xml-stripblanks" alias="heart-filled-symbolic.svg">icons/hicolor/scalable/actions/heart-filled-symbolic.svg</file>
+        <file preprocess="xml-stripblanks" alias="heartbeat-symbolic.svg">icons/hicolor/scalable/actions/heartbeat-symbolic.svg</file>
+    </gresource>
 </gresources>

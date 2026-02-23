@@ -101,7 +101,7 @@
                                             <object class="GtkButton" id="like_button">
                                                 <property name="halign">end</property>
                                                 <property name="valign">center</property>
-                                                <property name="icon-name">non-starred-symbolic</property>
+                                                <property name="icon-name">heart-outline-symbolic</property>
                                                 <signal name="clicked" handler="like_button_clicked_cb" swapped="true" />
                                                 <property name="tooltip-text" translatable="yes">Like songs list</property>
                                                 <style>

@@ -121,8 +121,10 @@
                             <object class="GtkButton" id="like_button">
                                 <property name="halign">end</property>
                                 <property name="valign">center</property>
-                                <property name="icon-name">non-starred-symbolic</property>
+                                <property name="icon-name">heart-outline-symbolic</property>
                                 <property name="tooltip-text" translatable="yes">Like song</property>
+                                <property name="margin-end">8</property>
+                                <property name="width-request">40</property>
                                 <signal name="clicked" handler="like_button_clicked_cb" swapped="true" />
                                 <style>
                                     <class name="flat" />
@@ -147,6 +149,7 @@
                                 <property name="halign">end</property>
                                 <property name="single_line_mode">True</property>
                                 <property name="margin-end">12</property>
+                                <property name="width-request">48</property>
                                 <attributes>
                                     <attribute name="font-features" value="tnum=1" />
                                 </attributes>

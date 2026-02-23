@@ -244,7 +244,7 @@ impl PlayList {
                 }
             }
             LoopsState::Track => self.list.get(self.position),
-            LoopsState::None => {
+            LoopsState::None | LoopsState::Moved => {
                 if let Some(song) = self.list.get(self.position + 1) {
                     Some(song)
                 } else {
@@ -276,7 +276,7 @@ impl PlayList {
                 }
             }
             LoopsState::Track => self.list.get(self.position),
-            LoopsState::None => {
+            LoopsState::None | LoopsState::Moved => {
                 if let Some(song) = self.list.get(self.position + 1) {
                     self.position += 1;
                     Some(song)
@@ -340,7 +340,7 @@ impl PlayList {
                 }
             }
             LoopsState::Track => self.list.get(self.position),
-            LoopsState::None => {
+            LoopsState::None | LoopsState::Moved => {
                 if let Some(song) = self.list.get(position) {
                     self.position = position;
                     Some(song)
@@ -365,6 +365,8 @@ pub enum LoopsState {
     // 不循环
     #[default]
     None,
+    // 心动模式
+    Moved,
 }
 
 impl LoopsState {
@@ -374,6 +376,7 @@ impl LoopsState {
             "one" => LoopsState::Track,
             "loop" => LoopsState::Playlist,
             "shuffle" => LoopsState::Shuffle,
+            "moved" => LoopsState::Moved,
             _ => LoopsState::None,
         }
     }
@@ -396,6 +399,7 @@ impl ToString for LoopsState {
             LoopsState::Track => "one".to_string(),
             LoopsState::Playlist => "loop".to_string(),
             LoopsState::Shuffle => "shuffle".to_string(),
+            LoopsState::Moved => "moved".to_string(),
         }
     }
 }

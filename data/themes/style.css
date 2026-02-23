@@ -145,6 +145,20 @@ flowboxchild:active {
     background-color: shade(@accent_bg_color, 1.1);
 }
 
+/* Visually center the play triangle in the circular button */
+.play-button image {
+    -gtk-icon-transform: translateX(1px);
+}
+
+/* Like button red heart when active */
+.like-active {
+    color: #e53935;
+}
+
+.like-active:hover {
+    color: #c62828;
+}
+
 /* Seek scale custom styling */
 .seek-scale trough {
     min-height: 4px;

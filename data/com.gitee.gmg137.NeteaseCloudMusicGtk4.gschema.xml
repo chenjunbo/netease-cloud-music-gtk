@@ -16,6 +16,7 @@
                 <choice value='one' />
                 <choice value='loop' />
                 <choice value='shuffle' />
+                <choice value='moved' />
             </choices>
             <default>'none'</default>
             <summary>Settings player loop</summary>

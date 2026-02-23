@@ -71,16 +71,17 @@
                                                         <child>
                                                             <object class="GtkLabel" id="header_like_label">
                                                                 <property name="label">喜欢</property>
-                                                                <property name="halign">end</property>
-                                                                <property name="width-request">34</property>
+                                                                <property name="halign">center</property>
+                                                                <property name="width-request">40</property>
+                                                                <property name="margin-end">8</property>
                                                             </object>
                                                         </child>
                                                         <child>
                                                             <object class="GtkLabel">
                                                                 <property name="label">时长</property>
-                                                                <property name="halign">end</property>
+                                                                <property name="halign">center</property>
                                                                 <property name="margin-end">12</property>
-                                                                <property name="margin-start">12</property>
+                                                                <property name="width-request">48</property>
                                                             </object>
                                                         </child>
                                                     </object>

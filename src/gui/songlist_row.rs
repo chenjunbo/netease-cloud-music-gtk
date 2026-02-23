@@ -278,14 +278,24 @@ mod imp {
                 .transform_to(|_, v: bool| {
                     Some(
                         (if v {
-                            "starred-symbolic"
+                            "heart-filled-symbolic"
                         } else {
-                            "non-starred-symbolic"
+                            "heart-outline-symbolic"
                         })
                         .to_string(),
                     )
                 })
                 .build();
+
+            let like_button = self.like_button.get();
+            obj.connect_notify_local(Some("like"), move |obj, _| {
+                let like = obj.property::<bool>("like");
+                if like {
+                    like_button.add_css_class("like-active");
+                } else {
+                    like_button.remove_css_class("like-active");
+                }
+            });
 
             // 注册右键菜单 actions
             let action_group = gio::SimpleActionGroup::new();

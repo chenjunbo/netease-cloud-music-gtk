@@ -116,7 +116,7 @@ impl MprisController {
             LoopsState::Shuffle => set_loop_status(self, LoopStatus::Playlist).await?,
             LoopsState::Playlist => set_loop_status(self, LoopStatus::Playlist).await?,
             LoopsState::Track => set_loop_status(self, LoopStatus::Track).await?,
-            LoopsState::None => set_loop_status(self, LoopStatus::None).await?,
+            LoopsState::None | LoopsState::Moved => set_loop_status(self, LoopStatus::None).await?,
         };
         match status {
             LoopsState::Shuffle => set_mpris_shuffle(self, true).await?,

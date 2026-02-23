@@ -218,7 +218,7 @@
                                                                                         <property name="margin-end">8</property>
                                                                                         <child>
                                                                                             <object class="GtkImage">
-                                                                                                <property name="icon-name">emote-love-symbolic</property>
+                                                                                                <property name="icon-name">heart-filled-symbolic</property>
                                                                                             </object>
                                                                                         </child>
                                                                                         <child>

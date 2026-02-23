@@ -139,6 +139,9 @@ impl PlayerControls {
     pub fn play(&self, song_info: SongInfo) {
         let imp = self.imp();
 
+        // 清除恢复状态的 pending seek，避免新歌从旧位置播放
+        imp.pending_seek_usec.set(0);
+
         let player = imp.player.get().unwrap();
         player.stop();
         player.set_uri(Some(&song_info.song_url));
@@ -842,15 +845,15 @@ impl PlayerControls {
             }
             "loops" => {
                 let value = self.property::<LoopsState>("loops");
-                let switch: gtk::CheckButton = match value {
-                    LoopsState::Shuffle => imp.shuffle_button.get(),
-                    LoopsState::None => imp.none_button.get(),
-                    LoopsState::Track => imp.one_button.get(),
-                    LoopsState::Playlist => imp.loop_button.get(),
+                let (icon, tooltip) = match value {
+                    LoopsState::None => ("media-playlist-consecutive-symbolic", gettext("Shuffle/Repeat Off")),
+                    LoopsState::Track => ("media-playlist-repeat-song-symbolic", gettext("Repeat Song")),
+                    LoopsState::Playlist => ("media-playlist-repeat-symbolic", gettext("Repeat All")),
+                    LoopsState::Shuffle => ("media-playlist-shuffle-symbolic", gettext("Shuffle")),
+                    LoopsState::Moved => ("heartbeat-symbolic", gettext("Intelligent Mode")),
                 };
-                if !switch.is_active() {
-                    switch.set_active(true);
-                }
+                imp.repeat_button.set_icon_name(&icon);
+                imp.repeat_button.set_tooltip_text(Some(&tooltip));
 
                 if let Some(mpris) = imp.mpris.get() {
                     crate::MAINCONTEXT.spawn_local_with_priority(
@@ -969,19 +972,7 @@ mod imp {
         pub volume_button: TemplateChild<VolumeButton>,
 
         #[template_child]
-        pub repeat_menu_button: TemplateChild<MenuButton>,
-        #[template_child]
-        pub repeat_image: TemplateChild<Image>,
-        #[template_child(id = "none")]
-        pub none_button: TemplateChild<CheckButton>,
-        #[template_child(id = "one")]
-        pub one_button: TemplateChild<CheckButton>,
-        #[template_child(id = "loop")]
-        pub loop_button: TemplateChild<CheckButton>,
-        #[template_child(id = "shuffle")]
-        pub shuffle_button: TemplateChild<CheckButton>,
-        #[template_child(id = "moved_button")]
-        pub moved_button: TemplateChild<Button>,
+        pub repeat_button: TemplateChild<Button>,
         #[template_child(id = "like_button")]
         pub like_button: TemplateChild<Button>,
 
@@ -1139,19 +1130,54 @@ mod imp {
         }
 
         #[template_callback]
-        fn moved_button_cb(&self) {
-            let sender = self.sender.get().unwrap().clone();
-            if let Ok(playlist) = self.playlist.lock() {
-                if let Some(song_info) = playlist.current_song() {
-                    sender
-                        .send_blocking(Action::Moved(song_info.clone()))
-                        .unwrap();
-                    return;
+        fn repeat_button_cb(&self) {
+            let current = self.obj().property::<LoopsState>("loops");
+            let (next_state, icon, tooltip) = match current {
+                LoopsState::None => (
+                    LoopsState::Track,
+                    "media-playlist-repeat-song-symbolic",
+                    gettext("Repeat Song"),
+                ),
+                LoopsState::Track => (
+                    LoopsState::Playlist,
+                    "media-playlist-repeat-symbolic",
+                    gettext("Repeat All"),
+                ),
+                LoopsState::Playlist => (
+                    LoopsState::Shuffle,
+                    "media-playlist-shuffle-symbolic",
+                    gettext("Shuffle"),
+                ),
+                LoopsState::Shuffle => (
+                    LoopsState::Moved,
+                    "heartbeat-symbolic",
+                    gettext("Intelligent Mode"),
+                ),
+                LoopsState::Moved => (
+                    LoopsState::None,
+                    "media-playlist-consecutive-symbolic",
+                    gettext("Shuffle/Repeat Off"),
+                ),
+            };
+            self.repeat_button.set_icon_name(&icon);
+            self.repeat_button.set_tooltip_text(Some(&tooltip));
+            self.obj().set_loops(next_state);
+
+            // 心动模式需要触发 API 请求
+            if next_state == LoopsState::Moved {
+                let sender = self.sender.get().unwrap().clone();
+                if let Ok(playlist) = self.playlist.lock() {
+                    if let Some(song_info) = playlist.current_song() {
+                        sender
+                            .send_blocking(Action::Moved(song_info.clone()))
+                            .unwrap();
+                        return;
+                    }
                 }
+                sender
+                    .send_blocking(Action::AddToast(gettext("Intelligent mode failure！")))
+                    .unwrap();
             }
-            sender
-                .send_blocking(Action::AddToast(gettext("Intelligent mode failure！")))
-                .unwrap();
         }
 
         #[template_callback]
@@ -1170,37 +1196,6 @@ mod imp {
                 .unwrap();
         }
 
-        #[template_callback]
-        fn repeat_none_cb(&self) {
-            self.repeat_image
-                .set_icon_name(Some("media-playlist-consecutive-symbolic"));
-
-            self.obj().set_loops(LoopsState::None);
-        }
-
-        #[template_callback]
-        fn repeat_one_cb(&self) {
-            self.repeat_image
-                .set_icon_name(Some("media-playlist-repeat-song-symbolic"));
-
-            self.obj().set_loops(LoopsState::Track);
-        }
-
-        #[template_callback]
-        fn repeat_loop_cb(&self) {
-            self.repeat_image
-                .set_icon_name(Some("media-playlist-repeat-symbolic"));
-
-            self.obj().set_loops(LoopsState::Playlist);
-        }
-
-        #[template_callback]
-        fn repeat_shuffle_cb(&self) {
-            self.repeat_image
-                .set_icon_name(Some("media-playlist-shuffle-symbolic"));
-
-            self.obj().set_loops(LoopsState::Shuffle);
-        }
 
         #[template_callback]
         fn playlist_lyrics_cb(&self) {
@@ -1250,14 +1245,24 @@ mod imp {
                 .transform_to(|_, v: bool| {
                     Some(
                         (if v {
-                            "starred-symbolic"
+                            "heart-filled-symbolic"
                         } else {
-                            "non-starred-symbolic"
+                            "heart-outline-symbolic"
                         })
                         .to_string(),
                     )
                 })
                 .build();
+
+            let like_button = self.like_button.get();
+            obj.connect_notify_local(Some("like"), move |obj, _| {
+                let like = obj.property::<bool>("like");
+                if like {
+                    like_button.add_css_class("like-active");
+                } else {
+                    like_button.remove_css_class("like-active");
+                }
+            });
         }
 
         fn properties() -> &'static [ParamSpec] {
