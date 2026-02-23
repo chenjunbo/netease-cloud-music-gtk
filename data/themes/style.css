@@ -193,10 +193,32 @@ flowboxchild:active {
     border-radius: 50%;
 }
 
-/* Player cover image rounded corners */
+/* Vinyl disc — outer black circle */
+.vinyl-disc {
+    background-color: #222;
+    border-radius: 50%;
+    border: 1px solid #444;
+}
+
+/* Album cover inside disc — small circular image */
 .player-cover {
-    border-radius: 6px;
+    border-radius: 50%;
     overflow: hidden;
+}
+
+/* Spinning animation */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.cover-spinning {
+    animation: spin 8s linear infinite;
+}
+
+.cover-paused {
+    animation: spin 8s linear infinite;
+    animation-play-state: paused;
 }
 
 /* Time labels monospace numbers */
@@ -244,6 +266,43 @@ flowboxchild:active {
 .sidebar-section-label {
     opacity: 0.6;
     font-size: 9pt;
+    font-weight: bold;
+}
+
+/* ===== Lyrics Overlay ===== */
+
+.lyrics-overlay {
+    background-color: rgba(0, 0, 0, 0.95);
+}
+
+.lyrics-overlay-title {
+    color: white;
+    font-size: 1.4em;
+    font-weight: bold;
+}
+
+.lyrics-overlay-artist {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.0em;
+}
+
+.lyrics-overlay-close {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.lyrics-overlay-close:hover {
+    color: white;
+}
+
+.lyrics-line {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 1.1em;
+    transition: all 200ms ease-in-out;
+}
+
+.lyrics-line-active {
+    color: white;
+    font-size: 1.3em;
     font-weight: bold;
 }
 

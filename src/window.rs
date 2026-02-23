@@ -16,6 +16,7 @@ use gtk::{
     CompositeTemplate,
     gio::{self, SettingsBindFlags},
     glib,
+    graphene,
 };
 use log::*;
 use ncm_api::{BannersInfo, LoginInfo, SongInfo, SongList, TopList};
@@ -97,6 +98,20 @@ mod imp {
         pub drawer_songs_list: TemplateChild<SongListView>,
         #[template_child]
         pub drawer_count_label: TemplateChild<Label>,
+
+        // Lyrics overlay
+        #[template_child]
+        pub lyrics_overlay_revealer: TemplateChild<Revealer>,
+        #[template_child]
+        pub lyrics_overlay_title: TemplateChild<Label>,
+        #[template_child]
+        pub lyrics_overlay_artist: TemplateChild<Label>,
+        #[template_child]
+        pub lyrics_scroll: TemplateChild<ScrolledWindow>,
+        #[template_child]
+        pub lyrics_lines_box: TemplateChild<gtk::Box>,
+        pub overlay_lyrics: RefCell<Vec<(u64, String)>>,
+        pub overlay_labels: RefCell<Vec<Label>>,
 
         pub playlist_lyrics_page: OnceCell<PlayListLyricsPage>,
 
@@ -1025,6 +1040,166 @@ impl NeteaseCloudMusicGtk4Window {
         }
     }
 
+    // ===== Lyrics Overlay =====
+
+    pub fn show_lyrics_overlay(&self, si: &ncm_api::SongInfo, lyrics: Vec<(u64, String)>) {
+        let imp = self.imp();
+
+        // Set title and artist
+        imp.lyrics_overlay_title.set_label(&si.name);
+        imp.lyrics_overlay_artist.set_label(&si.singer);
+
+        // Clear old labels
+        let lines_box = imp.lyrics_lines_box.get();
+        while let Some(child) = lines_box.first_child() {
+            lines_box.remove(&child);
+        }
+
+        let mut labels = Vec::new();
+
+        if lyrics.is_empty() {
+            let label = Label::new(Some("暂无歌词"));
+            label.add_css_class("lyrics-line");
+            lines_box.append(&label);
+            labels.push(label);
+        } else {
+            for (_, text) in &lyrics {
+                let text = text.trim();
+                if text.is_empty() {
+                    continue;
+                }
+                let label = Label::new(Some(text));
+                label.set_halign(gtk::Align::Center);
+                label.add_css_class("lyrics-line");
+                lines_box.append(&label);
+                labels.push(label);
+            }
+        }
+
+        imp.overlay_lyrics.replace(lyrics);
+        imp.overlay_labels.replace(labels);
+
+        // Show the overlay
+        imp.lyrics_overlay_revealer.set_reveal_child(true);
+    }
+
+    pub fn hide_lyrics_overlay(&self) {
+        self.imp().lyrics_overlay_revealer.set_reveal_child(false);
+    }
+
+    pub fn is_lyrics_overlay_visible(&self) -> bool {
+        self.imp().lyrics_overlay_revealer.reveals_child()
+    }
+
+    pub fn update_lyrics_overlay_data(&self, lyrics: Vec<(u64, String)>) {
+        if !self.is_lyrics_overlay_visible() {
+            return;
+        }
+        let imp = self.imp();
+
+        // Rebuild labels with new lyrics
+        let lines_box = imp.lyrics_lines_box.get();
+        while let Some(child) = lines_box.first_child() {
+            lines_box.remove(&child);
+        }
+
+        let mut labels = Vec::new();
+        if lyrics.is_empty() {
+            let label = Label::new(Some("暂无歌词"));
+            label.add_css_class("lyrics-line");
+            lines_box.append(&label);
+            labels.push(label);
+        } else {
+            for (_, text) in &lyrics {
+                let text = text.trim();
+                if text.is_empty() {
+                    continue;
+                }
+                let label = Label::new(Some(text));
+                label.set_halign(gtk::Align::Center);
+                label.add_css_class("lyrics-line");
+                lines_box.append(&label);
+                labels.push(label);
+            }
+        }
+
+        // Also update title/artist from current song
+        if let Some(si) = imp.player_controls.get().get_current_song() {
+            imp.lyrics_overlay_title.set_label(&si.name);
+            imp.lyrics_overlay_artist.set_label(&si.singer);
+        }
+
+        imp.overlay_lyrics.replace(lyrics);
+        imp.overlay_labels.replace(labels);
+    }
+
+    pub fn update_lyrics_overlay_highlight(&self, time: u64) {
+        if !self.is_lyrics_overlay_visible() {
+            return;
+        }
+        let imp = self.imp();
+        let lyrics = imp.overlay_lyrics.borrow().clone();
+        let labels = imp.overlay_labels.borrow();
+
+        if lyrics.is_empty() || labels.is_empty() {
+            return;
+        }
+
+        let playing = crate::gui::get_playing_indexes(lyrics.clone(), time);
+
+        // Build a set of label indices that correspond to non-empty lyrics lines
+        // (we skipped empty lines when creating labels)
+        let mut lyric_to_label: Vec<usize> = Vec::new();
+        let mut label_idx = 0;
+        for (_, text) in &lyrics {
+            if text.trim().is_empty() {
+                lyric_to_label.push(usize::MAX); // no label for empty lines
+            } else {
+                lyric_to_label.push(label_idx);
+                label_idx += 1;
+            }
+        }
+
+        // Remove active class from all
+        for label in labels.iter() {
+            label.remove_css_class("lyrics-line-active");
+            if !label.has_css_class("lyrics-line") {
+                label.add_css_class("lyrics-line");
+            }
+        }
+
+        if let Some((start, end)) = playing {
+            for i in start..=end {
+                if i < lyric_to_label.len() {
+                    let li = lyric_to_label[i];
+                    if li < labels.len() {
+                        labels[li].remove_css_class("lyrics-line");
+                        labels[li].add_css_class("lyrics-line-active");
+
+                        // Scroll to center the active label
+                        if i == start {
+                            let scroll = imp.lyrics_scroll.get();
+                            if let Some(adj) = Some(scroll.vadjustment()) {
+                                let label_widget = &labels[li];
+                                // Use compute_point to find label position relative to scroll
+                                if let Some(point) = label_widget.compute_point(
+                                    &*imp.lyrics_lines_box,
+                                    &graphene::Point::new(0.0, 0.0),
+                                ) {
+                                    let label_y = point.y() as f64;
+                                    let label_h = label_widget.height() as f64;
+                                    let scroll_h = scroll.height() as f64;
+                                    let target = label_y + label_h / 2.0 - scroll_h / 2.0;
+                                    adj.set_value(target.max(0.0));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn update_playlist_status(&self, index: usize) {
         let imp = self.imp();
         let page = imp.playlist_lyrics_page.get().unwrap();
@@ -1303,6 +1478,11 @@ impl NeteaseCloudMusicGtk4Window {
     fn drawer_clear_clicked_cb(&self) {
         let sender = self.imp().sender.get().unwrap();
         sender.send_blocking(Action::ClearPlaylist).unwrap();
+    }
+
+    #[template_callback]
+    fn lyrics_overlay_close_cb(&self) {
+        self.hide_lyrics_overlay();
     }
 
     #[template_callback]

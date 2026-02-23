@@ -408,10 +408,23 @@ impl PlayerControls {
     pub fn gst_state_changed(&self, state: PlayState) {
         let imp = self.imp();
         let play_button = imp.play_button.get();
+        let disc = imp.vinyl_disc.get();
         match state {
-            PlayState::Stopped => play_button.set_icon_name("media-playback-start-symbolic"),
-            PlayState::Paused => play_button.set_icon_name("media-playback-start-symbolic"),
-            PlayState::Playing => play_button.set_icon_name("media-playback-pause-symbolic"),
+            PlayState::Playing => {
+                play_button.set_icon_name("media-playback-pause-symbolic");
+                disc.remove_css_class("cover-paused");
+                disc.add_css_class("cover-spinning");
+            }
+            PlayState::Paused => {
+                play_button.set_icon_name("media-playback-start-symbolic");
+                disc.remove_css_class("cover-spinning");
+                disc.add_css_class("cover-paused");
+            }
+            PlayState::Stopped => {
+                play_button.set_icon_name("media-playback-start-symbolic");
+                disc.remove_css_class("cover-spinning");
+                disc.remove_css_class("cover-paused");
+            }
             _ => (),
         }
     }
@@ -945,23 +958,9 @@ impl PlayerControls {
 
     #[template_callback]
     fn title_clicked_cb(&self) {
-        if let Some(songinfo) = self.get_current_song() {
+        if self.get_current_song().is_some() {
             let sender = self.imp().sender.get().unwrap().clone();
-            let clipboard = self.clipboard();
-            let share = gettext_f(
-                "https://music.163.com/song?id={id}\nsong:{name}\nsinger:{singer}",
-                &[
-                    ("id", &songinfo.id.to_string()),
-                    ("name", &songinfo.name),
-                    ("singer", &songinfo.singer),
-                ],
-            );
-            clipboard.set_text(&share);
-            sender
-                .send_blocking(Action::AddToast(gettext(
-                    "Copied song information to the clipboard!",
-                )))
-                .unwrap();
+            sender.send_blocking(Action::ToggleLyricsOverlay).unwrap();
         }
     }
 }
@@ -983,6 +982,8 @@ mod imp {
         pub play_button: TemplateChild<Button>,
         #[template_child]
         pub next_button: TemplateChild<Button>,
+        #[template_child]
+        pub vinyl_disc: TemplateChild<gtk::Box>,
         #[template_child]
         pub cover_image: TemplateChild<Image>,
         #[template_child]

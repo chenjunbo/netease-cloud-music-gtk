@@ -102,6 +102,8 @@ pub enum Action {
     ToPlayListLyricsPage(Vec<SongInfo>, SongInfo),
     TogglePlaylistDrawer,
     ClearPlaylist,
+    ToggleLyricsOverlay,
+    HideLyricsOverlay,
     UpdateLyrics(SongInfo, u64),
     UpdatePlayListStatus(usize),
     RemoveFromPlayList(SongInfo),
@@ -1256,6 +1258,28 @@ impl NeteaseCloudMusicGtk4Application {
             Action::ClearPlaylist => {
                 window.clear_playlist();
             }
+            Action::ToggleLyricsOverlay => {
+                if window.is_lyrics_overlay_visible() {
+                    window.hide_lyrics_overlay();
+                } else {
+                    let ncmapi = ncmapi.clone();
+                    MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
+                        if let Some(si) = window.imp().player_controls.get().get_current_song() {
+                            match ncmapi.get_lyrics(si.clone()).await {
+                                Ok(lrc) => {
+                                    window.show_lyrics_overlay(&si, lrc);
+                                }
+                                Err(_) => {
+                                    window.show_lyrics_overlay(&si, vec![]);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            Action::HideLyricsOverlay => {
+                window.hide_lyrics_overlay();
+            }
             Action::UpdateLyrics(si, time) => {
                 MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
                     if time == 0 {
@@ -1264,13 +1288,16 @@ impl NeteaseCloudMusicGtk4Application {
                         match ncmapi.get_lyrics(si).await {
                             Ok(lrc) => {
                                 debug!("获取歌词：{:?}", lrc);
-                                window.update_lyrics(lrc);
+                                window.update_lyrics(lrc.clone());
+                                // Also update lyrics overlay if visible
+                                window.update_lyrics_overlay_data(lrc);
                             }
                             Err(e) => debug!("{}", e),
                         }
                     }
                     // 更新歌词高亮位置
                     window.update_lyrics_timestamp(time);
+                    window.update_lyrics_overlay_highlight(time);
                 });
             }
             Action::UpdatePlayListStatus(index) => {

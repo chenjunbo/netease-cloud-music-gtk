@@ -58,11 +58,11 @@
             </object>
         </child>
         <child>
-            <object class="GtkImage" id="cover_image">
-                <property name="halign">fill</property>
+            <object class="GtkBox" id="vinyl_disc">
+                <property name="halign">center</property>
                 <property name="valign">center</property>
-                <property name="icon-name">image-missing-symbolic</property>
-                <property name="pixel-size">50</property>
+                <property name="width-request">56</property>
+                <property name="height-request">56</property>
                 <property name="tooltip-text" translatable="yes">View Album</property>
                 <child>
                     <object class="GtkGestureClick">
@@ -70,8 +70,28 @@
                     </object>
                 </child>
                 <style>
-                    <class name="player-cover" />
+                    <class name="vinyl-disc" />
                 </style>
+                <child>
+                    <object class="GtkOverlay" id="cover_clip">
+                        <property name="halign">center</property>
+                        <property name="valign">center</property>
+                        <property name="overflow">hidden</property>
+                        <property name="width-request">30</property>
+                        <property name="height-request">30</property>
+                        <style>
+                            <class name="player-cover" />
+                        </style>
+                        <child>
+                            <object class="GtkImage" id="cover_image">
+                                <property name="halign">fill</property>
+                                <property name="valign">fill</property>
+                                <property name="icon-name">image-missing-symbolic</property>
+                                <property name="pixel-size">30</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
             </object>
         </child>
         <child>
