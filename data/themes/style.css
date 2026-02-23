@@ -235,8 +235,21 @@ flowboxchild:active {
     background-color: alpha(@theme_bg_color, 0.97);
 }
 
+/* Sidebar overall font size */
+#sidebar_box {
+    font-size: 1.15em;
+}
+
 /* Section labels (My, etc.) */
 .sidebar-section-label {
+    opacity: 0.6;
+    font-size: 9pt;
+    font-weight: bold;
+}
+
+/* Expander labels (创建的歌单, 收藏的歌单) match section label style */
+#created_playlists_expander > title,
+#collected_playlists_expander > title {
     opacity: 0.6;
     font-size: 9pt;
     font-weight: bold;

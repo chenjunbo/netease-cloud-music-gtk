@@ -97,6 +97,8 @@ impl SonglistRow {
     pub fn set_album_button_visible(&self, visible: bool) {
         let imp = self.imp();
         imp.album_button.set_visible(visible);
+        // When album is hidden, let the like button expand to push controls to the right
+        imp.like_button.set_hexpand(!visible);
     }
 
     pub fn set_remove_button_visible(&self, visible: bool) {

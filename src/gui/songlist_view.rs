@@ -68,6 +68,9 @@ impl SongListView {
         imp.header_box.set_visible(!sis.is_empty());
         imp.header_album_label.set_visible(!no_act_album);
         imp.header_like_label.set_visible(!no_act_like);
+        // When album header is hidden, let like label expand to push controls right
+        imp.header_like_label.set_hexpand(no_act_album);
+        imp.header_like_label.set_halign(if no_act_album { gtk::Align::End } else { gtk::Align::Center });
 
         sis.iter().zip(likes.iter()).enumerate().for_each(|(i, (si, like))| {
             let sender = sender.clone();
