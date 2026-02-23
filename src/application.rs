@@ -100,6 +100,8 @@ pub enum Action {
 
     // playlist
     ToPlayListLyricsPage(Vec<SongInfo>, SongInfo),
+    TogglePlaylistDrawer,
+    ClearPlaylist,
     UpdateLyrics(SongInfo, u64),
     UpdatePlayListStatus(usize),
     RemoveFromPlayList(SongInfo),
@@ -1247,6 +1249,12 @@ impl NeteaseCloudMusicGtk4Application {
                 } else {
                     sender.send_blocking(Action::PageBack).unwrap();
                 }
+            }
+            Action::TogglePlaylistDrawer => {
+                window.toggle_playlist_drawer();
+            }
+            Action::ClearPlaylist => {
+                window.clear_playlist();
             }
             Action::UpdateLyrics(si, time) => {
                 MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {

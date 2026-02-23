@@ -619,6 +619,25 @@ impl PlayerControls {
         }
     }
 
+    pub fn clear_all(&self) {
+        let imp = self.imp();
+        let player = imp.player.get().unwrap();
+        player.stop();
+        if let Ok(mut playlist) = imp.playlist.lock() {
+            playlist.add_list(vec![]);
+        }
+        imp.play_button.get().set_icon_name("media-playback-start-symbolic");
+        imp.title_label.get().set_label("");
+        imp.title_label.get().set_tooltip_text(None);
+        imp.artist_label.get().set_label("");
+        imp.cover_image.get().set_icon_name(Some("image-missing-symbolic"));
+        imp.seek_scale.set_range(0.0, 0.0);
+        imp.seek_scale.set_value(0.0);
+        imp.progress_time_label.get().set_label("00:00");
+        imp.duration_label.get().set_label("00:00");
+        self.update_button_sensitivity();
+    }
+
     pub fn get_list(&self) -> Vec<SongInfo> {
         if let Ok(playlist) = self.imp().playlist.lock() {
             playlist.get_list()
@@ -1199,29 +1218,10 @@ mod imp {
 
         #[template_callback]
         fn playlist_lyrics_cb(&self) {
-            if let Ok(playlist) = self.playlist.lock() {
-                let current_song = playlist
-                    .current_song()
-                    .unwrap_or(&SongInfo {
-                        id: 0,
-                        name: String::new(),
-                        singer: String::new(),
-                        album: String::new(),
-                        album_id: 0,
-                        pic_url: String::new(),
-                        duration: 0,
-                        song_url: String::new(),
-                        copyright: ncm_api::SongCopyright::Unknown,
-                    })
-                    .to_owned();
-                let sender = self.sender.get().unwrap().clone();
-                sender
-                    .send_blocking(Action::ToPlayListLyricsPage(
-                        playlist.get_list(),
-                        current_song,
-                    ))
-                    .unwrap();
-            }
+            let sender = self.sender.get().unwrap().clone();
+            sender
+                .send_blocking(Action::TogglePlaylistDrawer)
+                .unwrap();
         }
     }
 

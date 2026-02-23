@@ -132,18 +132,6 @@
                             </object>
                         </child>
                         <child>
-                            <object class="GtkButton" id="remove_button">
-                                <property name="halign">end</property>
-                                <property name="valign">center</property>
-                                <property name="icon-name">user-trash-symbolic</property>
-                                <property name="tooltip-text" translatable="yes">Remove song</property>
-                                <signal name="clicked" handler="remove_button_clicked_cb" swapped="true" />
-                                <style>
-                                    <class name="flat" />
-                                </style>
-                            </object>
-                        </child>
-                        <child>
                             <object class="GtkLabel" id="duration_label">
                                 <property name="focusable">False</property>
                                 <property name="halign">end</property>
@@ -155,6 +143,18 @@
                                 </attributes>
                                 <style>
                                     <class name="duration-label" />
+                                </style>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkButton" id="remove_button">
+                                <property name="halign">end</property>
+                                <property name="valign">center</property>
+                                <property name="icon-name">user-trash-symbolic</property>
+                                <property name="tooltip-text" translatable="yes">Remove song</property>
+                                <signal name="clicked" handler="remove_button_clicked_cb" swapped="true" />
+                                <style>
+                                    <class name="flat" />
                                 </style>
                             </object>
                         </child>

@@ -88,6 +88,14 @@ mod imp {
         #[template_child]
         pub collected_playlists_listbox: TemplateChild<ListBox>,
 
+        // Playlist drawer
+        #[template_child]
+        pub playlist_drawer_revealer: TemplateChild<Revealer>,
+        #[template_child]
+        pub drawer_songs_list: TemplateChild<SongListView>,
+        #[template_child]
+        pub drawer_count_label: TemplateChild<Label>,
+
         pub playlist_lyrics_page: OnceCell<PlayListLyricsPage>,
 
         pub user_menus: OnceCell<UserMenus>,
@@ -504,7 +512,8 @@ impl NeteaseCloudMusicGtk4Window {
     }
 
     pub fn remove_from_playlist(&self, song_info: SongInfo) {
-        let player_controls = self.imp().player_controls.get();
+        let imp = self.imp();
+        let player_controls = imp.player_controls.get();
         player_controls.remove_song(song_info);
 
         let sis = player_controls.get_list();
@@ -523,10 +532,15 @@ impl NeteaseCloudMusicGtk4Window {
         self.init_playlist_lyrics_page(sis, si.to_owned());
 
         if si.id == 0 {
-            let sender = self.imp().sender.get().unwrap();
+            let sender = imp.sender.get().unwrap();
             sender.send_blocking(Action::PageBack).unwrap();
         }
         self.update_button_sensitivity();
+
+        // Refresh drawer if open
+        if imp.playlist_drawer_revealer.reveals_child() {
+            self.update_drawer_playlist();
+        }
     }
 
     pub fn add_playlist(&self, sis: Vec<SongInfo>, is_play: bool) {
@@ -590,6 +604,11 @@ impl NeteaseCloudMusicGtk4Window {
         // 初始化播放列表页
         let playlist_lyrics_page = imp.playlist_lyrics_page.get().unwrap();
         playlist_lyrics_page.set_sender(sender.clone());
+
+        // 初始化播放列表抽屉
+        let drawer_songs_list = imp.drawer_songs_list.get();
+        drawer_songs_list.set_sender(sender.clone());
+        drawer_songs_list.set_property("no-act-album", true);
 
         let page_stack = imp.page_stack.get().unwrap();
         page_stack.set_transition_type(StackTransitionType::Crossfade);
@@ -678,6 +697,45 @@ impl NeteaseCloudMusicGtk4Window {
 
     pub fn update_button_sensitivity(&self) {
         self.imp().player_controls.get().update_button_sensitivity();
+    }
+
+    pub fn toggle_playlist_drawer(&self) {
+        let imp = self.imp();
+        let revealer = imp.playlist_drawer_revealer.get();
+        let is_open = revealer.reveals_child();
+        if !is_open {
+            self.update_drawer_playlist();
+        }
+        revealer.set_reveal_child(!is_open);
+    }
+
+    pub fn update_drawer_playlist(&self) {
+        let imp = self.imp();
+        let player_controls = imp.player_controls.get();
+        let sis = player_controls.get_list();
+        let current_song = player_controls.get_current_song();
+
+        let drawer_songs_list = imp.drawer_songs_list.get();
+        drawer_songs_list.clear_list();
+
+        let likes = self.get_song_likes(&sis);
+
+        imp.drawer_count_label.set_label(&format!("{}", sis.len()));
+
+        drawer_songs_list.init_new_list(&sis, &likes);
+
+        // Highlight current song
+        if let Some(current) = current_song {
+            if let Some(idx) = sis.iter().position(|s| s.id == current.id) {
+                drawer_songs_list.mark_new_row_playing(idx as i32, false);
+            }
+        }
+    }
+
+    pub fn clear_playlist(&self) {
+        let imp = self.imp();
+        imp.player_controls.get().clear_all();
+        imp.playlist_drawer_revealer.set_reveal_child(false);
     }
 
     pub fn save_playlist_state(&self) {
@@ -1169,6 +1227,12 @@ impl NeteaseCloudMusicGtk4Window {
         let menu = self.imp().search_menu.get();
         menu.set_label(&check.label().unwrap());
         self.set_property("search-type", SearchType::SongList);
+    }
+
+    #[template_callback]
+    fn drawer_clear_clicked_cb(&self) {
+        let sender = self.imp().sender.get().unwrap();
+        sender.send_blocking(Action::ClearPlaylist).unwrap();
     }
 
     #[template_callback]

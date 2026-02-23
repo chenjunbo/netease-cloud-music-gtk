@@ -362,41 +362,116 @@
                                             </object>
                                         </child>
                                         <child>
-                                            <object class="GtkStack" id="base_stack">
+                                            <object class="GtkOverlay" id="content_overlay">
                                                 <property name="hexpand">true</property>
                                                 <property name="vexpand">true</property>
                                                 <child>
-                                                    <object class="GtkStackPage">
-                                                        <property name="name">content_page</property>
-                                                        <property name="child">
-                                                            <object class="GtkStack" id="content_stack">
-                                                                <child>
-                                                                    <object class="GtkStackPage">
-                                                                        <property name="name">discover_page</property>
-                                                                        <property name="child">
-                                                                            <object class="GtkScrolledWindow">
-                                                                                <child>
-                                                                                    <object class="GtkViewport" id="discover_view">
-                                                                                        <property name="scroll-to-focus">False</property>
+                                                    <object class="GtkStack" id="base_stack">
+                                                        <property name="hexpand">true</property>
+                                                        <property name="vexpand">true</property>
+                                                        <child>
+                                                            <object class="GtkStackPage">
+                                                                <property name="name">content_page</property>
+                                                                <property name="child">
+                                                                    <object class="GtkStack" id="content_stack">
+                                                                        <child>
+                                                                            <object class="GtkStackPage">
+                                                                                <property name="name">discover_page</property>
+                                                                                <property name="child">
+                                                                                    <object class="GtkScrolledWindow">
                                                                                         <child>
-                                                                                            <object class="Discover" id="discover" />
+                                                                                            <object class="GtkViewport" id="discover_view">
+                                                                                                <property name="scroll-to-focus">False</property>
+                                                                                                <child>
+                                                                                                    <object class="Discover" id="discover" />
+                                                                                                </child>
+                                                                                            </object>
                                                                                         </child>
                                                                                     </object>
-                                                                                </child>
+                                                                                </property>
                                                                             </object>
-                                                                        </property>
+                                                                        </child>
+                                                                        <child>
+                                                                            <object class="GtkStackPage">
+                                                                                <property name="name">toplist_page</property>
+                                                                                <property name="child">
+                                                                                    <object class="TopListView" id="toplist" />
+                                                                                </property>
+                                                                            </object>
+                                                                        </child>
+                                                                    </object>
+                                                                </property>
+                                                            </object>
+                                                        </child>
+                                                    </object>
+                                                </child>
+                                                <child type="overlay">
+                                                    <object class="GtkRevealer" id="playlist_drawer_revealer">
+                                                        <property name="halign">end</property>
+                                                        <property name="valign">fill</property>
+                                                        <property name="vexpand">true</property>
+                                                        <property name="transition-type">slide-left</property>
+                                                        <property name="transition-duration">200</property>
+                                                        <property name="reveal-child">false</property>
+                                                        <child>
+                                                            <object class="GtkBox" id="playlist_drawer_box">
+                                                                <property name="orientation">vertical</property>
+                                                                <property name="width-request">380</property>
+                                                                <style>
+                                                                    <class name="playlist-drawer" />
+                                                                </style>
+                                                                <child>
+                                                                    <object class="GtkBox">
+                                                                        <property name="orientation">horizontal</property>
+                                                                        <property name="margin-start">16</property>
+                                                                        <property name="margin-end">16</property>
+                                                                        <property name="margin-top">12</property>
+                                                                        <property name="margin-bottom">8</property>
+                                                                        <property name="spacing">8</property>
+                                                                        <child>
+                                                                            <object class="GtkLabel">
+                                                                                <property name="label">播放列表</property>
+                                                                                <property name="halign">start</property>
+                                                                                <property name="hexpand">true</property>
+                                                                                <style>
+                                                                                    <class name="title-3" />
+                                                                                </style>
+                                                                            </object>
+                                                                        </child>
+                                                                        <child>
+                                                                            <object class="GtkLabel" id="drawer_count_label">
+                                                                                <property name="label">0</property>
+                                                                                <property name="halign">end</property>
+                                                                                <style>
+                                                                                    <class name="dim-label" />
+                                                                                </style>
+                                                                            </object>
+                                                                        </child>
+                                                                        <child>
+                                                                            <object class="GtkButton" id="drawer_clear_button">
+                                                                                <property name="label">清空</property>
+                                                                                <property name="halign">end</property>
+                                                                                <signal name="clicked" handler="drawer_clear_clicked_cb" swapped="true" />
+                                                                                <style>
+                                                                                    <class name="flat" />
+                                                                                    <class name="destructive-action" />
+                                                                                </style>
+                                                                            </object>
+                                                                        </child>
                                                                     </object>
                                                                 </child>
                                                                 <child>
-                                                                    <object class="GtkStackPage">
-                                                                        <property name="name">toplist_page</property>
-                                                                        <property name="child">
-                                                                            <object class="TopListView" id="toplist" />
-                                                                        </property>
+                                                                    <object class="GtkSeparator">
+                                                                        <property name="orientation">horizontal</property>
+                                                                    </object>
+                                                                </child>
+                                                                <child>
+                                                                    <object class="SongListView" id="drawer_songs_list">
+                                                                        <property name="vexpand">true</property>
                                                                     </object>
                                                                 </child>
                                                             </object>
-                                                        </property>
+                                                        </child>
                                                     </object>
                                                 </child>
                                             </object>
