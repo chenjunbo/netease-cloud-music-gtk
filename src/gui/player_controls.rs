@@ -128,6 +128,14 @@ impl PlayerControls {
         imp.player_signal.set(player_signal).unwrap();
     }
 
+    pub fn update_button_sensitivity(&self) {
+        let imp = self.imp();
+        let has_songs = self.playlist_length() > 0;
+        imp.prev_button.get().set_sensitive(has_songs);
+        imp.play_button.get().set_sensitive(has_songs);
+        imp.next_button.get().set_sensitive(has_songs);
+    }
+
     pub fn play(&self, song_info: SongInfo) {
         let imp = self.imp();
 
@@ -363,6 +371,12 @@ impl PlayerControls {
 
         self.set_property("duration", sec);
 
+        // 恢复播放后 seek 到上次位置
+        let pending = imp.pending_seek_usec.replace(0);
+        if pending > 0 {
+            self.gst_position_update(pending);
+        }
+
         if let Some(mpris) = imp.mpris.get() {
             if let Some(mut si) = self.get_current_song() {
                 si.duration = msec / 1000;
@@ -410,6 +424,136 @@ impl PlayerControls {
                 });
             }
         }
+    }
+
+    pub fn save_playlist_state(&self) {
+        let imp = self.imp();
+        let progress_usec = if let Some(player) = imp.player.get() {
+            player
+                .position()
+                .map(|c| c.useconds())
+                .unwrap_or(0)
+        } else {
+            0
+        };
+        // 直接从 seek_scale 的范围获取 duration，比从 property 获取更可靠
+        let duration_usec = imp.seek_scale.adjustment().upper() as u64;
+
+        if let Ok(playlist) = imp.playlist.lock() {
+            let state = playlist.to_state(progress_usec, duration_usec);
+            let path = crate::path::get_playlist_state_path();
+            match serde_json::to_string(&state) {
+                Ok(json) => {
+                    if let Err(e) = std::fs::write(&path, json) {
+                        log::error!("Failed to save playlist state: {:?}", e);
+                    }
+                }
+                Err(e) => log::error!("Failed to serialize playlist state: {:?}", e),
+            }
+        }
+    }
+
+    pub fn restore_playlist_state(&self) {
+        let path = crate::path::get_playlist_state_path();
+        if !path.exists() {
+            return;
+        }
+
+        let json = match std::fs::read_to_string(&path) {
+            Ok(j) => j,
+            Err(e) => {
+                log::error!("Failed to read playlist state: {:?}", e);
+                return;
+            }
+        };
+
+        let state: crate::audio::PlaylistState = match serde_json::from_str(&json) {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("Failed to deserialize playlist state: {:?}", e);
+                return;
+            }
+        };
+
+        if state.list.is_empty() {
+            return;
+        }
+
+        let imp = self.imp();
+
+        // Restore playlist
+        if let Ok(mut playlist) = imp.playlist.lock() {
+            playlist.restore_from_state(&state);
+        }
+
+        // Restore loop state UI
+        let loops = crate::audio::LoopsState::from_str(&state.loops);
+        self.set_loops(loops);
+
+        // Update song info display
+        if let Some(si) = self.get_current_song() {
+            let cover_image = imp.cover_image.get();
+            let mut path_cover = CACHE.clone();
+            path_cover.push(format!("{}-songlist.jpg", si.album_id));
+            if path_cover.exists() {
+                cover_image.set_from_file(Some(&path_cover));
+            } else {
+                cover_image.set_icon_name(Some("image-missing-symbolic"));
+            }
+
+            imp.title_label.get().set_label(&si.name);
+            imp.title_label.get().set_tooltip_text(Some(&si.name));
+            imp.artist_label.get().set_label(&si.singer);
+        }
+
+        // 计算 duration: 优先用保存的值，否则从 SongInfo.duration (毫秒) 推算
+        let duration_usec = if state.duration_usec > 0 {
+            state.duration_usec
+        } else if let Some(si) = self.get_current_song() {
+            if si.duration > 0 {
+                si.duration * 1000 // SongInfo.duration 是毫秒，转为微秒
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        // 设置进度条范围和总时长
+        if duration_usec > 0 {
+            imp.seek_scale.set_range(0.0, duration_usec as f64);
+            let dur_sec = duration_usec / 10u64.pow(6);
+            let duration_str = format!("{:0>2}:{:0>2}", dur_sec / 60, dur_sec % 60);
+            imp.duration_label.get().set_label(&duration_str);
+            self.set_property("duration", dur_sec);
+        }
+
+        // 设置进度位置
+        imp.seek_scale.set_value(state.progress_usec as f64);
+        let sec = state.progress_usec / 10u64.pow(6);
+        let progress = format!("{:0>2}:{:0>2}", sec / 60, sec % 60);
+        imp.progress_time_label.get().set_label(&progress);
+
+        // 记录待 seek 位置，等歌曲加载后跳转
+        imp.pending_seek_usec.set(state.progress_usec);
+
+        self.update_button_sensitivity();
+    }
+
+    pub fn get_saved_progress_usec(&self) -> u64 {
+        let path = crate::path::get_playlist_state_path();
+        if !path.exists() {
+            return 0;
+        }
+        let json = match std::fs::read_to_string(&path) {
+            Ok(j) => j,
+            Err(_) => return 0,
+        };
+        let state: crate::audio::PlaylistState = match serde_json::from_str(&json) {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
+        state.progress_usec
     }
 
     pub fn bind_shortcut(&self) {
@@ -484,6 +628,7 @@ impl PlayerControls {
         if let Ok(mut playlist) = self.imp().playlist.lock() {
             playlist.add_song(song);
         }
+        self.update_button_sensitivity();
     }
 
     pub fn remove_song(&self, song: SongInfo) {
@@ -533,6 +678,7 @@ impl PlayerControls {
         if let Ok(mut playlist) = self.imp().playlist.lock() {
             playlist.add_list(list);
         }
+        self.update_button_sensitivity();
     }
 
     pub fn set_song_url(&self, si: SongInfo) {
@@ -854,6 +1000,9 @@ mod imp {
 
         like: Cell<bool>,
 
+        // 恢复播放时需要 seek 到的位置（微秒），0 表示无需 seek
+        pub pending_seek_usec: Cell<u64>,
+
         // 播放条拖动结束时的值
         scale_value: Cell<f64>,
     }
@@ -905,6 +1054,19 @@ mod imp {
                 .unwrap()
                 .eq("media-playback-start-symbolic")
             {
+                // 恢复状态后 player 没有 URI，需要走完整的播放流程
+                if player.uri().is_none() {
+                    if let Ok(playlist) = self.playlist.lock() {
+                        if let Some(song_info) = playlist.current_song() {
+                            let song_info = song_info.to_owned();
+                            let sender = self.sender.get().unwrap().clone();
+                            sender
+                                .send_blocking(Action::Play(song_info))
+                                .unwrap();
+                            return;
+                        }
+                    }
+                }
                 player.play();
                 button.set_icon_name("media-playback-pause-symbolic");
                 if let Some(mpris) = self.mpris.get() {

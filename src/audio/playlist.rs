@@ -7,6 +7,17 @@
 use gtk::glib;
 use mpris_server::LoopStatus;
 use ncm_api::SongInfo;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PlaylistState {
+    pub list: Vec<SongInfo>,
+    pub position: usize,
+    pub loops: String,
+    pub progress_usec: u64,
+    #[serde(default)]
+    pub duration_usec: u64,
+}
 
 #[derive(Debug)]
 pub struct PlayList {
@@ -273,6 +284,28 @@ impl PlayList {
                     None
                 }
             }
+        }
+    }
+
+    pub fn to_state(&self, progress_usec: u64, duration_usec: u64) -> PlaylistState {
+        PlaylistState {
+            list: self.list.clone(),
+            position: self.position,
+            loops: self.loops.to_string(),
+            progress_usec,
+            duration_usec,
+        }
+    }
+
+    pub fn restore_from_state(&mut self, state: &PlaylistState) {
+        self.list = state.list.clone();
+        self.position = state.position;
+        self.loops = LoopsState::from_str(&state.loops);
+        self.play_state = false;
+        if let LoopsState::Shuffle = self.loops {
+            let mut list = self.list.clone();
+            fastrand::shuffle(&mut list);
+            self.shuffle = list;
         }
     }
 

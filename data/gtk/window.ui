@@ -410,7 +410,8 @@
                 <child>
                     <object class="GtkRevealer" id="player_revealer">
                         <property name="height-request">60</property>
-                        <property name="visible">false</property>
+                        <property name="visible">true</property>
+                        <property name="reveal-child">true</property>
                         <property name="transition-duration">888</property>
                         <property name="transition-type">swing-up</property>
                         <child>

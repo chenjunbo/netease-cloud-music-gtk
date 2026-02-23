@@ -94,6 +94,14 @@ impl PlayListLyricsPage {
             }
         };
         self.switch_row(i);
+        self.scroll_to_current_song(i);
+    }
+
+    fn scroll_to_current_song(&self, index: i32) {
+        if index >= 0 {
+            let songs_list = self.imp().songs_list.get();
+            songs_list.scroll_to_row(index);
+        }
     }
 
     pub fn update_lyrics_text(&self, text: &str) {

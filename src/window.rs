@@ -209,7 +209,13 @@ mod imp {
         }
     }
     impl WidgetImpl for NeteaseCloudMusicGtk4Window {}
-    impl WindowImpl for NeteaseCloudMusicGtk4Window {}
+    impl WindowImpl for NeteaseCloudMusicGtk4Window {
+        fn close_request(&self) -> glib::Propagation {
+            // Save playlist state before window closes
+            self.player_controls.get().save_playlist_state();
+            self.parent_close_request()
+        }
+    }
     impl ApplicationWindowImpl for NeteaseCloudMusicGtk4Window {}
 
     fn load_css() {
@@ -517,13 +523,10 @@ impl NeteaseCloudMusicGtk4Window {
         self.init_playlist_lyrics_page(sis, si.to_owned());
 
         if si.id == 0 {
-            let player_revealer = self.imp().player_revealer.get();
-            player_revealer.set_reveal_child(false);
-            player_revealer.set_visible(false);
-            player_revealer.set_reveal_child(false);
             let sender = self.imp().sender.get().unwrap();
             sender.send_blocking(Action::PageBack).unwrap();
         }
+        self.update_button_sensitivity();
     }
 
     pub fn add_playlist(&self, sis: Vec<SongInfo>, is_play: bool) {
@@ -564,11 +567,6 @@ impl NeteaseCloudMusicGtk4Window {
         let player_controls = self.imp().player_controls.get();
         player_controls.set_property("like", self.imp().user_like_song_contains(&song_info.id));
         player_controls.play(song_info);
-        let player_revealer = self.imp().player_revealer.get();
-        if !player_revealer.reveals_child() {
-            player_revealer.set_visible(true);
-            player_revealer.set_reveal_child(true);
-        }
     }
 
     pub fn init_page_data(&self) {
@@ -676,6 +674,18 @@ impl NeteaseCloudMusicGtk4Window {
             }
         }
         None
+    }
+
+    pub fn update_button_sensitivity(&self) {
+        self.imp().player_controls.get().update_button_sensitivity();
+    }
+
+    pub fn save_playlist_state(&self) {
+        self.imp().player_controls.get().save_playlist_state();
+    }
+
+    pub fn restore_playlist_state(&self) {
+        self.imp().player_controls.get().restore_playlist_state();
     }
 
     pub fn persist_volume(&self, value: f64) {

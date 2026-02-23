@@ -213,6 +213,9 @@ mod imp {
                 ),
             );
 
+            // Restore playlist state from previous session
+            window.restore_playlist_state();
+
             // Ask the window manager/compositor to present the window
             window.present();
         }
@@ -1315,6 +1318,12 @@ impl NeteaseCloudMusicGtk4Application {
             #[weak(rename_to = app)]
             self,
             move |_, _| {
+                // 直接调用 save，不走 channel（quit 后 channel 消息可能来不及处理）
+                if let Some(weak_window) = app.imp().window.get() {
+                    if let Some(window) = weak_window.upgrade() {
+                        window.save_playlist_state();
+                    }
+                }
                 app.quit();
             }
         ));

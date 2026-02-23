@@ -145,6 +145,30 @@ impl SongListView {
         }
     }
 
+    pub fn scroll_to_row(&self, index: i32) {
+        let listbox = self.list_box();
+        if let Some(row) = listbox.row_at_index(index) {
+            let scroll_win = self.imp().scroll_win.get();
+            glib::idle_add_local_once(clone!(
+                #[weak]
+                scroll_win,
+                #[weak]
+                row,
+                move || {
+                    let adj = scroll_win.vadjustment();
+                    let (_, row_y) = row.translate_coordinates(&scroll_win, 0.0, 0.0).unwrap_or((0.0, 0.0));
+                    let viewport_height = adj.page_size();
+                    let current_scroll = adj.value();
+                    // Center the row in the viewport
+                    let row_height = row.height() as f64;
+                    let target = current_scroll + row_y - (viewport_height - row_height) / 2.0;
+                    let target = target.clamp(adj.lower(), adj.upper() - viewport_height);
+                    adj.set_value(target);
+                }
+            ));
+        }
+    }
+
     pub fn emit_row_activated(&self, row: &SonglistRow) {
         self.emit_by_name::<()>("row-activated", &[&row]);
     }
