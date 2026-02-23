@@ -84,6 +84,22 @@ flowboxchild:active {
     color: @accent_color;
 }
 
+/* Currently playing row: red title and artist */
+.playing-row .title-label,
+.playing-row .artist-label {
+    color: #e53935;
+    opacity: 1;
+}
+
+/* Cover play/pause overlay */
+.cover-play-overlay {
+    background-color: alpha(black, 0.35);
+    border-radius: 4px;
+    color: white;
+    min-width: 40px;
+    min-height: 40px;
+}
+
 /* Song row cover thumbnail */
 .song-cover {
     border-radius: 4px;

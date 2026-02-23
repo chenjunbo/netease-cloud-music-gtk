@@ -77,6 +77,16 @@ impl SonglistRow {
         let imp = self.imp();
         imp.play_icon.set_visible(visible);
         imp.index_label.set_visible(!visible);
+        imp.cover_play_icon.set_visible(visible);
+        if visible {
+            self.add_css_class("playing-row");
+        } else {
+            self.remove_css_class("playing-row");
+        }
+    }
+
+    pub fn set_cover_play_icon_name(&self, icon_name: &str) {
+        self.imp().cover_play_icon.set_icon_name(Some(icon_name));
     }
 
     pub fn set_like_button_visible(&self, visible: bool) {
@@ -230,6 +240,8 @@ mod imp {
         pub index_label: TemplateChild<Label>,
         #[template_child]
         pub cover_image: TemplateChild<Image>,
+        #[template_child]
+        pub cover_play_icon: TemplateChild<Image>,
         #[template_child]
         pub title_label: TemplateChild<Label>,
         #[template_child]

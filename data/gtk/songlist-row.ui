@@ -47,7 +47,7 @@
                         <property name="hexpand">True</property>
                         <property name="spacing">8</property>
                         <child>
-                            <object class="GtkOverlay">
+                            <object class="GtkOverlay" id="cover_overlay">
                                 <property name="hexpand">False</property>
                                 <child>
                                     <object class="GtkImage" id="cover_image">
@@ -55,6 +55,18 @@
                                         <property name="icon-name">image-missing-symbolic</property>
                                         <style>
                                             <class name="song-cover" />
+                                        </style>
+                                    </object>
+                                </child>
+                                <child type="overlay">
+                                    <object class="GtkImage" id="cover_play_icon">
+                                        <property name="visible">False</property>
+                                        <property name="pixel-size">18</property>
+                                        <property name="halign">center</property>
+                                        <property name="valign">center</property>
+                                        <property name="icon-name">media-playback-start-symbolic</property>
+                                        <style>
+                                            <class name="cover-play-overlay" />
                                         </style>
                                     </object>
                                 </child>
@@ -74,6 +86,9 @@
                                         <property name="hexpand">True</property>
                                         <property name="ellipsize">end</property>
                                         <property name="max_width_chars">90</property>
+                                        <style>
+                                            <class name="title-label" />
+                                        </style>
                                     </object>
                                 </child>
                                 <child>

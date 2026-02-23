@@ -90,6 +90,8 @@ mod imp {
 
         // Playlist drawer
         #[template_child]
+        pub content_overlay: TemplateChild<gtk::Overlay>,
+        #[template_child]
         pub playlist_drawer_revealer: TemplateChild<Revealer>,
         #[template_child]
         pub drawer_songs_list: TemplateChild<SongListView>,
@@ -610,6 +612,31 @@ impl NeteaseCloudMusicGtk4Window {
         drawer_songs_list.set_sender(sender.clone());
         drawer_songs_list.set_property("no-act-album", true);
 
+        // 点击抽屉外区域自动关闭（挂在 gbox 上，覆盖侧边栏+内容区）
+        let gesture = gtk::GestureClick::new();
+        gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let revealer = imp.playlist_drawer_revealer.get();
+        let gbox = imp.gbox.get();
+        gesture.connect_pressed(clone!(
+            #[weak]
+            revealer,
+            #[weak]
+            gbox,
+            move |gesture, _, x, y| {
+                if revealer.reveals_child() {
+                    if let Some(target) = gbox.pick(x, y, gtk::PickFlags::DEFAULT) {
+                        if !target.is_ancestor(&revealer)
+                            && target != *revealer.upcast_ref::<Widget>()
+                        {
+                            revealer.set_reveal_child(false);
+                            gesture.set_state(gtk::EventSequenceState::Claimed);
+                        }
+                    }
+                }
+            }
+        ));
+        imp.gbox.add_controller(gesture);
+
         let page_stack = imp.page_stack.get().unwrap();
         page_stack.set_transition_type(StackTransitionType::Crossfade);
         page_stack.set_transition_duration(100);
@@ -724,11 +751,53 @@ impl NeteaseCloudMusicGtk4Window {
 
         drawer_songs_list.init_new_list(&sis, &likes);
 
-        // Highlight current song
+        // Highlight current song, set play/pause icon, and scroll to center
         if let Some(current) = current_song {
             if let Some(idx) = sis.iter().position(|s| s.id == current.id) {
                 drawer_songs_list.mark_new_row_playing(idx as i32, false);
+                let icon = if player_controls.is_playing() {
+                    "media-playback-pause-symbolic"
+                } else {
+                    "media-playback-start-symbolic"
+                };
+                if let Some(row) = drawer_songs_list.list_box().row_at_index(idx as i32) {
+                    let row = row.downcast::<SonglistRow>().unwrap();
+                    row.set_cover_play_icon_name(icon);
+                }
+                // 延迟滚动，等 revealer 动画（200ms）结束后再定位
+                glib::timeout_add_local_once(
+                    std::time::Duration::from_millis(250),
+                    clone!(
+                        #[weak]
+                        drawer_songs_list,
+                        move || {
+                            drawer_songs_list.scroll_to_row(idx as i32);
+                        }
+                    ),
+                );
             }
+        }
+    }
+
+    pub fn update_drawer_play_state(&self) {
+        let imp = self.imp();
+        if !imp.playlist_drawer_revealer.reveals_child() {
+            return;
+        }
+        let icon = if imp.player_controls.get().is_playing() {
+            "media-playback-pause-symbolic"
+        } else {
+            "media-playback-start-symbolic"
+        };
+        let listbox = imp.drawer_songs_list.list_box();
+        let mut idx = 0;
+        while let Some(row) = listbox.row_at_index(idx) {
+            let row = row.downcast::<SonglistRow>().unwrap();
+            if row.has_css_class("playing-row") {
+                row.set_cover_play_icon_name(icon);
+                break;
+            }
+            idx += 1;
         }
     }
 
@@ -972,6 +1041,7 @@ impl NeteaseCloudMusicGtk4Window {
     }
     pub fn gst_state_changed(&self, state: gstreamer_play::PlayState) {
         self.imp().player_controls.get().gst_state_changed(state);
+        self.update_drawer_play_state();
     }
     pub fn gst_volume_changed(&self, volume: f64) {
         self.imp().player_controls.get().gst_volume_changed(volume);

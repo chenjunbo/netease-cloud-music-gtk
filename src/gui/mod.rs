@@ -28,6 +28,7 @@ pub use search_song_page::*;
 pub use search_songlist_page::*;
 pub use songlist_grid_item::*;
 pub use songlist_page::*;
+pub use songlist_row::*;
 pub use songlist_view::*;
 pub use theme_selector::*;
 pub use toplist::*;

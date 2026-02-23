@@ -128,6 +128,14 @@ impl PlayerControls {
         imp.player_signal.set(player_signal).unwrap();
     }
 
+    pub fn is_playing(&self) -> bool {
+        self.imp()
+            .play_button
+            .get()
+            .icon_name()
+            .map_or(false, |name| name == "media-playback-pause-symbolic")
+    }
+
     pub fn update_button_sensitivity(&self) {
         let imp = self.imp();
         let has_songs = self.playlist_length() > 0;
