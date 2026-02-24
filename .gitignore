@@ -3,3 +3,6 @@
 **/*.rs.bk
 /src/config.rs
 /Cargo.lock
+/__build/
+/builddir/
+/.claude/

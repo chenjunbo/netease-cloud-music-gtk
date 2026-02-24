@@ -5,7 +5,7 @@ use crate::{
     model::*,
     ncmapi::NcmClient,
 };
-use adw::{ColorScheme, StyleManager, Toast};
+use adw::{ColorScheme, StyleManager, Toast, prelude::{AdwDialogExt, AlertDialogExt}};
 use async_channel::Sender;
 use gettextrs::gettext;
 use gio::{Settings, SimpleAction};
@@ -81,7 +81,11 @@ mod imp {
         #[template_child]
         pub my_listbox: TemplateChild<ListBox>,
         #[template_child]
-        pub created_playlists_expander: TemplateChild<gtk::Expander>,
+        pub created_playlists_section: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub created_playlists_label: TemplateChild<Label>,
+        #[template_child]
+        pub create_playlist_button: TemplateChild<Button>,
         #[template_child]
         pub created_playlists_listbox: TemplateChild<ListBox>,
         #[template_child]
@@ -401,6 +405,10 @@ impl NeteaseCloudMusicGtk4Window {
 
     pub fn is_logined(&self) -> bool {
         self.get_uid() != 0u64
+    }
+
+    pub fn get_created_playlists(&self) -> Vec<SongList> {
+        self.imp().created_playlists.borrow().clone()
     }
 
     pub fn set_nickname(&self, nickname: String) {
@@ -911,7 +919,7 @@ impl NeteaseCloudMusicGtk4Window {
         let imp = self.imp();
         imp.my_section_label.set_visible(true);
         imp.my_listbox.set_visible(true);
-        imp.created_playlists_expander.set_visible(true);
+        imp.created_playlists_section.set_visible(true);
         // collected expander visibility is controlled by init_sidebar_playlists_split
     }
 
@@ -919,7 +927,7 @@ impl NeteaseCloudMusicGtk4Window {
         let imp = self.imp();
         imp.my_section_label.set_visible(false);
         imp.my_listbox.set_visible(false);
-        imp.created_playlists_expander.set_visible(false);
+        imp.created_playlists_section.set_visible(false);
         imp.collected_playlists_expander.set_visible(false);
         // Clear playlist data
         imp.created_playlists.borrow_mut().clear();
@@ -948,8 +956,8 @@ impl NeteaseCloudMusicGtk4Window {
         Self::clear_listbox(&imp.collected_playlists_listbox);
 
         // Update expander labels with count
-        imp.created_playlists_expander
-            .set_label(Some(&format!("创建的歌单 ({})", created.len())));
+        imp.created_playlists_label
+            .set_label(&format!("创建的歌单 ({})", created.len()));
         imp.collected_playlists_expander
             .set_label(Some(&format!("收藏的歌单 ({})", collected.len())));
 
@@ -1256,6 +1264,57 @@ impl NeteaseCloudMusicGtk4Window {
         }
     }
 
+    pub fn show_create_playlist_dialog<F: Fn(String) + 'static>(&self, callback: F) {
+        debug!("show_create_playlist_dialog: 开始创建对话框");
+        let dialog = adw::AlertDialog::builder()
+            .heading(gettext("Create Playlist"))
+            .close_response("cancel")
+            .default_response("create")
+            .build();
+
+        dialog.add_response("cancel", &gettext("Cancel"));
+        dialog.add_response("create", &gettext("Create"));
+        dialog.set_response_appearance("create", adw::ResponseAppearance::Suggested);
+
+        let entry = gtk::Entry::builder()
+            .placeholder_text(gettext("Playlist name"))
+            .activates_default(true)
+            .build();
+
+        let clamp = adw::Clamp::builder()
+            .maximum_size(400)
+            .child(&entry)
+            .build();
+
+        dialog.set_extra_child(Some(&clamp));
+
+        // Disable create button when entry is empty
+        dialog.set_response_enabled("create", false);
+        entry.connect_changed(clone!(
+            #[weak]
+            dialog,
+            move |entry| {
+                let text = entry.text();
+                dialog.set_response_enabled("create", !text.trim().is_empty());
+            }
+        ));
+
+        let entry_clone = entry.clone();
+        dialog.connect_response(None, move |_, response| {
+            debug!("create_playlist_dialog: response={}", response);
+            if response == "create" {
+                let name = entry_clone.text().trim().to_string();
+                debug!("create_playlist_dialog: name={}", name);
+                if !name.is_empty() {
+                    callback(name);
+                }
+            }
+        });
+
+        dialog.present(Some(self));
+        debug!("show_create_playlist_dialog: 对话框已呈现");
+    }
+
     pub async fn action_search(
         &self,
         ncmapi: NcmClient,
@@ -1475,6 +1534,16 @@ impl NeteaseCloudMusicGtk4Window {
         let menu = self.imp().search_menu.get();
         menu.set_label(&check.label().unwrap());
         self.set_property("search-type", SearchType::SongList);
+    }
+
+    #[template_callback]
+    fn create_playlist_cb(&self) {
+        let sender = self.imp().sender.get().unwrap().clone();
+        self.show_create_playlist_dialog(move |name| {
+            sender
+                .send_blocking(Action::CreatePlaylist(name))
+                .unwrap();
+        });
     }
 
     #[template_callback]

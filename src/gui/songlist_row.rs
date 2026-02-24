@@ -7,7 +7,8 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gdk, gio, glib, CompositeTemplate, *};
 
-use crate::{application::Action, model::ImageDownloadImpl, path::CACHE};
+use crate::{application::Action, model::ImageDownloadImpl, path::CACHE, window::NeteaseCloudMusicGtk4Window};
+use log::debug;
 use async_channel::Sender;
 use gettextrs::gettext;
 use glib::{clone, ParamSpec, ParamSpecBoolean, SendWeakRef, Value};
@@ -160,6 +161,28 @@ impl SonglistRow {
         section.append(Some(like_label), Some("row.toggle-like"));
         menu_model.append_section(None, &section);
 
+        // 收藏到歌单子菜单
+        if let Some(window) = self.root().and_downcast_ref::<NeteaseCloudMusicGtk4Window>() {
+            let playlists = window.get_created_playlists();
+            debug!("右键菜单: 找到 window, 创建的歌单数量={}", playlists.len());
+            let submenu = gio::Menu::new();
+            submenu.append(Some("+ 新建歌单"), Some("row.create-playlist-and-add"));
+            for sl in &playlists {
+                let item = gio::MenuItem::new(Some(&sl.name), None);
+                item.set_action_and_target_value(
+                    Some("row.add-to-playlist"),
+                    Some(&sl.id.to_variant()),
+                );
+                submenu.append_item(&item);
+            }
+            let section2 = gio::Menu::new();
+            section2.append_submenu(Some("收藏到歌单"), &submenu);
+            menu_model.append_section(None, &section2);
+            debug!("右键菜单: 收藏到歌单子菜单已添加, 项数={}", submenu.n_items());
+        } else {
+            debug!("右键菜单: 未找到 window, 收藏到歌单子菜单未添加!");
+        }
+
         // 懒创建 PopoverMenu，clone 后释放 borrow 再 popup 防止重入 panic
         let menu = {
             let mut menu_ref = imp.context_menu.borrow_mut();
@@ -209,6 +232,7 @@ impl SonglistRow {
                 name: si.album,
                 cover_img_url: si.pic_url,
                 author: String::new(),
+                creator_id: 0,
             };
             sender.send_blocking(Action::ToAlbumPage(songlist)).unwrap();
         } else {
@@ -369,6 +393,63 @@ mod imp {
                 }
             ));
             action_group.add_action(&toggle_like);
+
+            let add_to_playlist = gio::SimpleAction::new(
+                "add-to-playlist",
+                Some(&glib::VariantType::new("t").unwrap()),
+            );
+            add_to_playlist.connect_activate(clone!(
+                #[weak]
+                obj,
+                move |_, param| {
+                    if let Some(variant) = param {
+                        let playlist_id: u64 = variant.get().unwrap();
+                        let imp = obj.imp();
+                        if let (Some(sender), Some(si)) =
+                            (imp.sender.get(), imp.song_info.borrow().clone())
+                        {
+                            sender
+                                .send_blocking(Action::AddSongToPlaylist(si.id, playlist_id))
+                                .unwrap();
+                        }
+                    }
+                }
+            ));
+            action_group.add_action(&add_to_playlist);
+
+            let create_playlist_and_add = gio::SimpleAction::new("create-playlist-and-add", None);
+            create_playlist_and_add.connect_activate(clone!(
+                #[weak]
+                obj,
+                move |_, _| {
+                    debug!("create-playlist-and-add action 被触发");
+                    let imp = obj.imp();
+                    if let (Some(sender), Some(si)) =
+                        (imp.sender.get(), imp.song_info.borrow().clone())
+                    {
+                        debug!("sender 和 song_info 都存在, song_id={}", si.id);
+                        let sender = sender.clone();
+                        let song_id = si.id;
+                        if let Some(window) = obj
+                            .root()
+                            .and_downcast_ref::<NeteaseCloudMusicGtk4Window>()
+                        {
+                            debug!("找到 window，准备显示创建歌单对话框");
+                            window.show_create_playlist_dialog(move |name| {
+                                debug!("创建歌单回调: name={}, song_id={}", name, song_id);
+                                sender
+                                    .send_blocking(Action::CreatePlaylistAndAddSong(name, song_id))
+                                    .unwrap();
+                            });
+                        } else {
+                            debug!("未找到 window!");
+                        }
+                    } else {
+                        debug!("sender 或 song_info 为空!");
+                    }
+                }
+            ));
+            action_group.add_action(&create_playlist_and_add);
 
             obj.insert_action_group("row", Some(&action_group));
         }

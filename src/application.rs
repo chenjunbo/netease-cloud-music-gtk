@@ -45,6 +45,9 @@ pub enum Action {
     LikeSongList(u64, bool, Option<ActionCallback>),
     LikeAlbum(u64, bool, Option<ActionCallback>),
     LikeSong(u64, bool, Option<ActionCallback>),
+    AddSongToPlaylist(u64, u64),
+    CreatePlaylist(String),
+    CreatePlaylistAndAddSong(String, u64),
     Moved(SongInfo),
 
     // play
@@ -647,6 +650,7 @@ impl NeteaseCloudMusicGtk4Application {
                                             name: album.name.to_owned(),
                                             cover_img_url: album.pic_url.to_owned(),
                                             author: album.artist_name.to_owned(),
+                                            creator_id: 0,
                                         },
                                         true,
                                     );
@@ -968,6 +972,94 @@ impl NeteaseCloudMusicGtk4Application {
                     }
                 });
             }
+            Action::AddSongToPlaylist(song_id, playlist_id) => {
+                let sender = imp.sender.clone();
+                MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
+                    if ncmapi
+                        .client
+                        .playlist_tracks("add", playlist_id, &[song_id])
+                        .await
+                    {
+                        debug!("添加歌曲到歌单: song={}, playlist={}", song_id, playlist_id);
+                        sender
+                            .send(Action::AddToast(gettext("Song added to playlist!")))
+                            .await
+                            .unwrap();
+                    } else {
+                        error!(
+                            "添加歌曲到歌单失败: song={}, playlist={}",
+                            song_id, playlist_id
+                        );
+                        sender
+                            .send(Action::AddToast(gettext(
+                                "Failed to add song to playlist!",
+                            )))
+                            .await
+                            .unwrap();
+                    }
+                });
+            }
+            Action::CreatePlaylist(name) => {
+                let sender = imp.sender.clone();
+                MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
+                    match ncmapi.client.playlist_create(&name).await {
+                        Ok(id) => {
+                            debug!("创建歌单成功: id={}, name={}", id, name);
+                            sender
+                                .send(Action::AddToast(gettext("Playlist created!")))
+                                .await
+                                .unwrap();
+                            sender.send(Action::InitMyPage).await.unwrap();
+                        }
+                        Err(err) => {
+                            error!("创建歌单失败: {:?}", err);
+                            sender
+                                .send(Action::AddToast(gettext("Failed to create playlist!")))
+                                .await
+                                .unwrap();
+                        }
+                    }
+                });
+            }
+            Action::CreatePlaylistAndAddSong(name, song_id) => {
+                let sender = imp.sender.clone();
+                MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
+                    match ncmapi.client.playlist_create(&name).await {
+                        Ok(new_id) => {
+                            debug!("创建歌单成功: id={}, name={}", new_id, name);
+                            if ncmapi
+                                .client
+                                .playlist_tracks("add", new_id, &[song_id])
+                                .await
+                            {
+                                debug!("添加歌曲到新歌单: song={}, playlist={}", song_id, new_id);
+                                sender
+                                    .send(Action::AddToast(gettext(
+                                        "Playlist created and song added!",
+                                    )))
+                                    .await
+                                    .unwrap();
+                            } else {
+                                error!("添加歌曲到新歌单失败: song={}, playlist={}", song_id, new_id);
+                                sender
+                                    .send(Action::AddToast(gettext(
+                                        "Playlist created, but failed to add song!",
+                                    )))
+                                    .await
+                                    .unwrap();
+                            }
+                            sender.send(Action::InitMyPage).await.unwrap();
+                        }
+                        Err(err) => {
+                            error!("创建歌单失败: {:?}", err);
+                            sender
+                                .send(Action::AddToast(gettext("Failed to create playlist!")))
+                                .await
+                                .unwrap();
+                        }
+                    }
+                });
+            }
             Action::Moved(si) => {
                 let sender = imp.sender.clone();
                 MAINCONTEXT.spawn_local_with_priority(Priority::DEFAULT_IDLE, async move {
@@ -1231,12 +1323,12 @@ impl NeteaseCloudMusicGtk4Application {
             }
             Action::InitMyPageSidebarPlaylists(sls) => {
                 // First item is "liked songs" (already in sidebar), skip it
-                // Split by author: matching nickname = created, otherwise = collected
-                let nickname = window.get_nickname();
+                // Split by creator_id: matching uid = created, otherwise = collected
+                let uid = window.get_uid();
                 let mut created = Vec::new();
                 let mut collected = Vec::new();
                 for sl in sls.into_iter().skip(1) {
-                    if sl.author == nickname {
+                    if sl.creator_id == uid {
                         created.push(sl);
                     } else {
                         collected.push(sl);

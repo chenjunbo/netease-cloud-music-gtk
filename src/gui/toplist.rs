@@ -148,6 +148,7 @@ mod imp {
                     name: info.name.clone(),
                     cover_img_url: info.cover.clone(),
                     author: String::new(),
+                    creator_id: 0,
                 };
                 sender
                     .send_blocking(Action::ToSongListPage(sl))
