@@ -1080,11 +1080,14 @@ impl NeteaseCloudMusicGtk4Window {
         imp.overlay_labels.replace(labels);
 
         // Show the overlay
+        imp.lyrics_overlay_revealer.set_can_target(true);
         imp.lyrics_overlay_revealer.set_reveal_child(true);
     }
 
     pub fn hide_lyrics_overlay(&self) {
-        self.imp().lyrics_overlay_revealer.set_reveal_child(false);
+        let revealer = &self.imp().lyrics_overlay_revealer;
+        revealer.set_reveal_child(false);
+        revealer.set_can_target(false);
     }
 
     pub fn is_lyrics_overlay_visible(&self) -> bool {
